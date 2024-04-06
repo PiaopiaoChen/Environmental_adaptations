@@ -1,5 +1,7 @@
 assessment_of_cross-contamination.rmd: This script assesses whether a substitution shared among strains from different evolved populations is due to cross-contamination, arises by chance, or emerges from a common selective pressure.
+
 fitness.rmd: Generates plots for Fig.1;
+
 1_mapping.pl: Identification of genomic changes;
 2_adaptive_genes.rmd: Identification of putatively adaptive genes; Generates plots for Fig.2d,3a,S4a,S4b
 3_number_of_mutations.rmd: plot mean number of substitutions per replicate across the 252 environments; Generates plot for Fig.2a;
