@@ -32,4 +32,6 @@ fitness.rmd: Generates plots for Fig.1;
 
 15_adaptive_substitutions_along_genes.rmd: Generates plots for Fig.4a,c,S6a,S6c,S6e,S6g,S6i,S6k;
 
-16_CRISPR_fitness.rmd: Generates plots for Fig.4b,4d,4e,4f,4g,S6b,S6d,S6f,S6h,S6j,S6i,S6m and Fig.S7
+16_CRISPR_fitness.rmd: Generates plots for Fig.4b,4d,4e,4f,4g,S6b,S6d,S6f,S6h,S6j,S6i,S6m and Fig.S7;
+
+Expected_N_S_ratio.pl: To estimate the relative numbers of synonymous, nonsynonymous, and nonsense substitutions in yeast coding regions expected under neutrality.
