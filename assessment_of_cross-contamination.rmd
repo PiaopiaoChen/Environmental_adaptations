@@ -1,0 +1,89 @@
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+library(tibble)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+
+mydata <- read.table("15_mutation_constant252_with_plate",sep="\t",header=T,fill=TRUE) %>% mutate(position=paste(chr,loc,ref,alt,sep="_"))
+
+
+```
+
+```{r}
+######## within plate similarity
+
+plates <- unique(mydata$Plate)
+length(plates)
+
+Dices_same_plates <- NULL
+for (k in 1:36){
+  
+  plate_one <- mydata[which(mydata$Plate == plates[k]),]
+  Envs <- unique(plate_one$env_name)
+  if(length(Envs) > 1){
+     
+    comb <- data.frame(t(combn(1:length(Envs),2)))
+    
+    for (i in 1:nrow(comb)){
+       Envs_pairs <- c(Envs[comb[i,1]], Envs[comb[i,2]])
+       Env_one_mutations <- plate_one %>% filter(env_name %in% Envs_pairs[1]) %>% distinct(env_name, position, .keep_all = TRUE)
+       Env_two_mutations <- plate_one %>% filter(env_name %in% Envs_pairs[2]) %>% distinct(env_name, position, .keep_all = TRUE)
+       Dices_temp <- 2*length(intersect(Env_one_mutations$position,Env_two_mutations$position))/(length(Env_one_mutations$position)+length(Env_two_mutations$position))
+       Dices_same_plates <- c(Dices_same_plates,Dices_temp)
+    }
+    
+  }
+} 
+mean(Dices_same_plates)
+##0.002734769
+  
+  
+######## between plate similarity
+Envs_all <-  unique(mydata$env_name)
+Dices_different_plates <- NULL
+
+for (k in 1:36){
+  
+    plate_one <- mydata[which(mydata$Plate == plates[k]),]
+    Envs <- unique(plate_one$env_name)
+    Envs_others <- Envs_all[!Envs_all %in% Envs]  
+    for (i in 1:length(Envs)){
+      for (j in 1:length(Envs_others)){
+        Envs_pairs <- c(Envs[i], Envs_others[j])
+        Env_one_mutations <- plate_one %>% filter(env_name %in% Envs_pairs[1]) %>% distinct(env_name, position, .keep_all = TRUE)
+        Env_two_mutations <- mydata %>% filter(env_name %in% Envs_pairs[2]) %>% distinct(env_name, position, .keep_all = TRUE)
+        Dices_temp <- 2*length(intersect(Env_one_mutations$position,Env_two_mutations$position))/(length(Env_one_mutations$position)+length(Env_two_mutations$position))
+        Dices_different_plates <- c(Dices_different_plates,Dices_temp)
+      }
+     }
+     Envs_all <- Envs_all[!Envs_all %in% Envs]  
+}
+  
+mean(Dices_different_plates)
+#0.002727058
+sd(Dices_different_plates)
+#0.007310117
+wilcox.test(Dices_same_plates,Dices_different_plates)
+
+  
+```
+
+
+```{r}
+
+#dices <- data.frame(scores = c(Dices_same_plates,Dices_different_plates), envs = c(rep("same",length(Dices_same_plates)),rep("diff",length(Dices_different_plates))))
+
+dices <- data.frame(mean = c(mean(Dices_same_plates),mean(Dices_different_plates)),sd=c(sd(Dices_same_plates),sd(Dices_different_plates)),envs=c("same","diff"))
+
+
+ggplot(dices,aes(x=envs,y=mean,group=envs,fill=envs))+geom_point()+geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width = 0.2) 
+theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))+scale_y_continuous(limits=c(0,0.01),breaks=seq(0,0.01,0.002))
+#outlier.shape = NA
+
+
+```
+
