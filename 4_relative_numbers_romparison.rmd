@@ -1,0 +1,202 @@
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+library(tibble)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+MA_coding_indel <- read.table("17_MA_coding_indel_on_gene",sep="\t",header=F,fill=TRUE)
+###indel
+
+for (i in 1:nrow(MA_coding_indel)){
+    nt_num <- abs(length(strsplit(MA_coding_indel$V7[i], "")[[1]]) -  length(strsplit(MA_coding_indel$V8[i], "")[[1]]))
+		if ((nt_num %% 3) == 0){
+		   MA_coding_indel[i,9] = "indel_no_frameshift"
+		}else{
+		   MA_coding_indel[i,9] = "indel_with_frameshift"
+        }
+	
+}
+
+indel_num <- as.data.frame.matrix(table(MA_coding_indel$V4,MA_coding_indel$V9))
+sum(indel_num$indel_no_frameshift)
+#50
+sum(indel_num$indel_with_frameshift)
+#52
+
+
+MA_noncoding <- read.table("17_MA_noncoding",sep="\t",header=F,fill=TRUE)
+###indel
+
+for (i in 1:nrow(MA_noncoding)){
+    nt_num <- abs(length(strsplit(MA_noncoding$V4[i], "")[[1]]) -  length(strsplit(MA_noncoding$V5[i], "")[[1]]))
+		if (nt_num == 0){
+		  MA_noncoding[i,7] = "SNVs"
+		}else if((nt_num %% 3) == 0){
+		   MA_noncoding[i,7] = "indel_no_frameshift"
+		}else{
+		   MA_noncoding[i,7] = "indel_with_frameshift"
+        }
+}
+
+indel_num_noncoding <- data.frame(table(MA_noncoding$V7))
+#                   Var1 Freq
+#1   indel_no_frameshift   21
+#2 indel_with_frameshift  205
+#3                  SNVs  418
+
+
+
+
+
+MA_coding_SNVs <- read.table("17_MA_N_S_on_gene",sep="\t",header=F,fill=TRUE) %>% mutate(mtype=paste(V10,V11,sep="_"))
+as.data.frame.matrix(table(MA_coding_SNVs$V7,MA_coding_SNVs$V1))
+
+
+MA_coding_SNVs$mtype[MA_coding_SNVs$mtype == "T_G"] <- "A_C"
+MA_coding_SNVs$mtype[MA_coding_SNVs$mtype == "T_C"] <- "A_G"
+MA_coding_SNVs$mtype[MA_coding_SNVs$mtype == "T_A"] <- "A_T"
+MA_coding_SNVs$mtype[MA_coding_SNVs$mtype == "G_T"] <- "C_A"
+MA_coding_SNVs$mtype[MA_coding_SNVs$mtype == "G_C"] <- "C_G"
+MA_coding_SNVs$mtype[MA_coding_SNVs$mtype == "G_A"] <- "C_T"
+
+#env_type <- as.data.frame.matrix(table(MA_coding_SNVs$mtype,MA_coding_SNVs$V7))
+#env_type2 <- env_type
+#column_sums <- colSums(env_type)
+#for (i in 1:ncol(env_type)) {
+#  env_type2[,i] <- env_type[,i] / colSums(env_type)[i]
+#}
+#row_averages <- rowMeans(env_type2)
+#       A_C        A_G        A_T        C_A        C_G        C_T 
+#0.12223588 0.19006482 0.07699891 0.27379723 0.07594183 0.26096133 
+
+
+env_type <- data.frame(table(MA_coding_SNVs$mtype))
+env_type$ratio <- env_type$Freq/sum(env_type$Freq)
+
+#> env_type
+#  Var1 Freq      ratio
+#1  A_C  113 0.10970874
+#2  A_G  201 0.19514563
+#3  A_T   79 0.07669903
+#4  C_A  295 0.28640777
+#5  C_G   69 0.06699029
+#6  C_T  273 0.26504854
+
+MA_coding_SNVs_YPD <- MA_coding_SNVs %>% filter(V7=="YPD")
+env_type_YPD <- data.frame(table(MA_coding_SNVs_YPD$mtype))
+env_type_YPD$ratio <- env_type_YPD$Freq/sum(env_type_YPD$Freq)
+#  Var1 Freq      ratio
+#1  A_C    8 0.09302326
+#2  A_G   19 0.22093023
+#3  A_T    7 0.08139535
+#4  C_A   27 0.31395349
+#5  C_G    8 0.09302326
+#6  C_T   17 0.19767442
+
+table(MA_coding_SNVs$V1)
+table(MA_coding_indel$V9)
+##MA_NULL <- 47+52
+##MA_synonymous <- 258
+(47+52)/258
+47/258
+nrow(MA_coding_SNVs) + nrow(MA_coding_indel) + nrow(MA_noncoding)
+(47+52)/1776
+47/1776
+52/1776
+
+nrow(MA_coding_SNVs) + nrow(MA_coding_indel) 
+(47+52)/1132
+
+```
+
+
+
+
+```{r}
+
+coding_noncoding <- data.frame(class=c("exp","obs"),nums=c(2.68,2.9))
+coding_noncoding$class <- factor(coding_noncoding$class, levels=c("obs","exp"))
+##17_average_coding_noncoding.pdf    8*2.49
+ggplot(coding_noncoding,aes(class,nums,label=nums))+geom_bar(stat="identity",width=0.5)+geom_text(size=5,hjust=1)+coord_flip()+theme_bw()+scale_y_continuous(limits=c(0,3),breaks=seq(0,3,1))
+
+
+#######use average
+
+Nons_S <- data.frame(class=c("exp","obs","adaptive","other"),nums=c(3.03,4.29,58.71,3.61))
+Nons_S$class <- factor(Nons_S$class, levels=c("other","adaptive","obs","exp"))
+##17_average_Nons_S.pdf
+ggplot(Nons_S,aes(class,nums,label=nums))+geom_bar(stat="identity",width=0.5)+geom_text(size=5,hjust=1)+coord_flip()+theme_bw()+scale_y_continuous(limits=c(0,60),breaks=seq(0,60,20))
+
+
+
+Non_S <- data.frame(class=c("exp","obs","adaptive","other"),nums=c(0.22,0.49,19.82,0.25))
+Non_S$class <- factor(Non_S$class, levels=c("other","adaptive","obs","exp"))
+##17_average_Non_S.pdf
+ggplot(Non_S,aes(class,nums,label=nums))+geom_bar(stat="identity",width=0.5)+geom_text(size=5,hjust=1)+coord_flip()+theme_bw()+scale_y_continuous(limits=c(0,20),breaks=seq(0,20,5))
+
+
+Frame_Cons <- data.frame(class=c("exp","obs","adaptive","other"),nums=c(1.04,2.69,8.67,1.66))
+Frame_Cons$class <- factor(Frame_Cons$class, levels=c("other","adaptive","obs","exp"))
+##17_average_Frame_Cons.pdf
+ggplot(Frame_Cons,aes(class,nums,label=nums))+geom_bar(stat="identity",width=0.5)+geom_text(size=5,hjust=1)+coord_flip()+theme_bw()+scale_y_continuous(limits=c(0,10),breaks=seq(0,10,2))
+
+
+#######use YPD
+Nons_S_YPD <- data.frame(class=c("exp","obs"),nums=c(3.1,4.29))
+Nons_S_YPD$class <- factor(Nons_S_YPD$class, levels=c("obs","exp"))
+
+##17_YPD_Nons_S.pdf
+
+ggplot(Nons_S_YPD,aes(class,nums,label=nums))+geom_bar(stat="identity",width=0.5)+geom_text(size=5,hjust=1)+coord_flip()+theme_bw()+scale_y_continuous(limits=c(0,5),breaks=seq(0,5,1))
+
+
+
+Non_S_YPD <- data.frame(class=c("exp","obs"),nums=c(0.22,0.49))
+Non_S_YPD$class <- factor(Non_S_YPD$class, levels=c("obs","exp"))
+##17_YPD_Non_S.pdf
+ggplot(Non_S_YPD,aes(class,nums,label=nums))+geom_bar(stat="identity",width=0.5)+geom_text(size=5,hjust=1)+coord_flip()+theme_bw()+scale_y_continuous(limits=c(0,0.5),breaks=seq(0,0.5,0.1))
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+
+
+MA_coding_SNVs <- read.table("17_MA_N_S_on_gene",sep="\t",header=F,fill=TRUE) %>% mutate(mtype=paste(V10,V11,sep="_"))%>% filter(!(V1 == "S")) %>% filter(!(V1 == "Non"))%>% filter(V7 == "YPD")
+
+codon <- read.table("19_codon_table",sep="\t",header=T,fill=TRUE)
+###classification by charge
+codon$charge <- ifelse(codon$AA %in% c("R", "H", "K"), "positive", ifelse(codon$AA %in% c("D", "E"), "negative", ifelse(codon$AA =="*","stop","neutral")))
+
+MA_coding_SNVs$ref_AA  <-codon$AA[match(MA_coding_SNVs$V2,codon$codon)]
+MA_coding_SNVs$alt_AA <-codon$AA[match(MA_coding_SNVs$V3,codon$codon)]
+
+MA_coding_SNVs$ref_charge <-codon$charge[match(MA_coding_SNVs$V2,codon$codon)]
+MA_coding_SNVs$alt_charge <-codon$charge[match(MA_coding_SNVs$V3,codon$codon)]
+MA_coding_SNVs$change_charge <- ifelse(MA_coding_SNVs$ref_charge == MA_coding_SNVs$alt_charge,"conservative","radical")
+table(MA_coding_SNVs$change_charge)
+#conservative      radical 
+#         441          284 
+
+codon$polv <- ifelse(codon$AA == "C", "Special", ifelse(codon$AA %in% c("A","G","P","S","T"), "Neutral", ifelse(codon$AA %in% c("N","D","Q","E"),"Polar_small",ifelse(codon$AA %in% c("R","H","K"),"Polar_large",ifelse(codon$AA %in% c("I","L","M","V"),"Nonpolar_small",ifelse(codon$AA %in% c("F","W","Y"),"Nonpolar_large","stop"))))))
+MA_coding_SNVs$ref_polv <-codon$polv[match(MA_coding_SNVs$V2,codon$codon)]
+MA_coding_SNVs$alt_polv <-codon$polv[match(MA_coding_SNVs$V3,codon$codon)]
+MA_coding_SNVs$polv_charge <- ifelse(MA_coding_SNVs$ref_polv == MA_coding_SNVs$alt_polv,"conservative","radical")
+
+table(MA_coding_SNVs$polv_charge)
+#conservative      radical 
+#         254          471
+
+```
+
+
