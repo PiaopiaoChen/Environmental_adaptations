@@ -1,0 +1,167 @@
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(reshape)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252/noncoding"
+setwd(dir0)
+
+mydata <- read.table("2_add_annotations_R_method1",sep="\t",header=T,fill=TRUE)
+
+info <- read.table("0_noncoding_method1_length",sep="\t",header=F,fill=TRUE,quote="") %>% setNames(c("region","len"))
+
+
+for (i in 1:nrow(mydata)){
+    nt_num <- abs(length(strsplit(mydata$ref[i], "")[[1]]) -  length(strsplit(mydata$alt[i], "")[[1]]))
+		if (nt_num == 0){
+		  mydata[i,14] = "SNVs"
+		}else if((nt_num %% 3) == 0){
+		   mydata[i,14] = "indel_no_frameshift"
+		}else{
+		   mydata[i,14] = "indel_with_frameshift"
+        }
+}
+
+indel_num_noncoding <- data.frame(table(mydata$V14))
+#                   Var1 Freq
+#   indel_no_frameshift   91
+# indel_with_frameshift  896
+#                  SNVs 5764
+
+```
+
+
+```{r}
+mydata_overlap <- NULL
+for (i in 1:nrow(mydata)){
+   temp <- data.frame(sample_name=mydata[i,1],env_name=mydata[i,2],regions=unlist(strsplit(mydata[i,7], "/")))
+   mydata_overlap <- rbind(mydata_overlap,temp)
+}
+
+mydata_overlap$regions2 <- mydata_overlap$regions
+mydata_overlap$regions2[grep("ARS",mydata_overlap$regions)] <- "ARS"
+mydata_overlap$regions2[grep("mitorigin",mydata_overlap$regions)] <- "mitorigin"
+UTR <- mydata_overlap$regions2[grep("UTR",mydata_overlap$regions)] 
+mydata_overlap$regions2[grep("UTR",mydata_overlap$regions)] <- sapply(strsplit(UTR,"_"),function(x)x[[1]])
+
+
+mydata2 <- mydata_overlap %>% distinct(sample_name, regions, .keep_all = TRUE)
+mydata3 <- mydata_overlap %>% distinct(env_name, regions, .keep_all = TRUE)
+
+#gene_frequency_among_environment 
+GFAE <- data.frame(table(mydata3$regions)) %>% setNames(c("region","no_of_envs"))
+#gene_frequency_among_samples
+GFAS <- data.frame(table(mydata2$regions)) %>% setNames(c("region","no_of_samples"))
+
+#MG_env_hit2 <-  data.frame(table(mydata2$env_name,mydata2$regions)) %>% filter(Freq > 1)
+#MG_env_hit2_twice <- data.frame(table(MG_env_hit2$Var1)) %>% filter(Freq > 0) 
+
+```
+
+
+
+```{r  eval = FALSE, echo = FALSE}
+##############run in cluster#################
+
+pool <- read.table("0_noncoding_loci",sep="\t",header=F,fill=TRUE)  %>% mutate(loci=paste(V1,V2,sep="_")) %>% select(V3,loci)
+envs <- unique(mydata$env_name)
+MG_env_all <- NULL
+#for (i in 1:length(envs)){
+for (ss in 1:1){
+    mydata_env <- mydata %>% filter(env_name==envs[ss])
+    mydata1_env <- mydata_overlap %>% filter(env_name==envs[ss])
+    mydata2_env <-  mydata1_env %>% distinct(sample_name, regions, .keep_all = TRUE)
+    GFAS_env <- data.frame(table(mydata2_env$regions)) %>% setNames(c("region","no_of_samples")) %>% merge(info,by=("region")) %>% .[order(-.$no_of_samples),]
+    mydata_sim <- mydata_env[,c(1:2)]
+    
+    ###########random number of mutations
+    #######simulations
+    GFAS_env_sim_all <- select(GFAS_env,region)
+    for (bb in 1:2){
+      GFAS_env_sim_all_temp <- select(GFAS_env,region)
+      
+      for (aa in 1:1000){
+        mydata_sim$region <- sample(pool$V3,nrow(mydata_env),replace = TRUE)
+        mydata_sim2 <- mydata_sim %>% distinct(sample_name, region, .keep_all = TRUE)
+        mydata_sim_overlap <- NULL
+        for (i in 1:nrow(mydata_sim2)){
+           temp <- data.frame(sample_name=mydata_sim2[i,1],env_name=mydata_sim2[i,2],region=unlist(strsplit(mydata_sim2[i,3], "/")))
+           mydata_sim_overlap <- rbind(mydata_sim_overlap,temp)
+        }
+        #gene_frequency_among_samples
+            GFAS_sim <- data.frame(table(mydata_sim_overlap$region)) %>% setNames(c("region",paste("rep",aa+1000*(bb-1),sep="")))
+            GFAS_env_sim_all_temp <- merge(GFAS_env_sim_all_temp,GFAS_sim,by="region",all.x=TRUE)
+      }
+      GFAS_env_sim_all_temp[is.na(GFAS_env_sim_all_temp)] <- 0
+      GFAS_env_sim_all <- merge(GFAS_env_sim_all,GFAS_env_sim_all_temp,by="region",all.x=TRUE)
+      print (bb)
+    }
+    
+    MG_True_Sim_env <- merge(GFAS_env,GFAS_env_sim_all,by="region",all.x=TRUE)
+    rm(GFAS_env_sim_all,GFAS_env_sim_all_temp)
+    
+    
+    p_env_all <- NULL
+    for (cc in 1:nrow(MG_True_Sim_env)){
+      p_env_all_temp <- sum(MG_True_Sim_env[cc,4:ncol(MG_True_Sim_env)] >= MG_True_Sim_env$no_of_samples[cc]) / (ncol(MG_True_Sim_env)-3)
+      p_env_all <- c(p_env_all,p_env_all_temp)
+      print (cc)
+    }
+    p_env_no_of_samples <- data.frame(region=MG_True_Sim_env$region, p_no_of_samples=p_env_all)
+    
+    MG_env <- GFAS_env %>% merge(p_env_no_of_samples,by="region")  %>% mutate(padj_no_of_samples=p.adjust(.$p_no_of_samples, method = "fdr", n = nrow(info))) %>% mutate(group=ifelse(.$padj_no_of_samples < 0.05, "multi","others")) %>% .[order(.$group,-.$no_of_samples),] %>% mutate(env=envs[ss])
+    MG_env_all <- rbind(MG_env_all,MG_env)
+}
+
+```
+
+
+```{r}
+
+env_regions_b1000000 <- read.table("3_env_all_gene_hits_b100000_method1",sep="\t",header=T,fill=TRUE)
+env_regions_b1000000_multi <- env_regions_b1000000 %>% filter(group == "multi")
+
+multi_envs_b100000 <- data.frame(table(env_regions_b1000000_multi$region)) %>% .[order(-.$Freq),] %>% setNames(c("region","envs"))
+multi_envs_samples_b100000 <- data.frame(aggregate(env_regions_b1000000_multi$no_of_samples, list(env_regions_b1000000_multi$region), FUN=sum))  %>% setNames(c("region","samples"))
+
+multi_hits_b100000 <- merge(multi_envs_b100000,multi_envs_samples_b100000,by="region")  %>% .[order(-.$envs,-.$samples),] 
+multi_hits_b100000 <- multi_hits_b100000 %>% mutate(order=c(1:nrow(multi_hits_b100000)))
+
+multi_hits_b100000_melt <- melt(multi_hits_b100000,id.var=c("region","order"),variable.names=c("envs","samples"))
+
+######3_plot_all_multi_hits_noncoding_method1.pdf  5*4
+
+ggplot(multi_hits_b100000_melt, aes(x=order,y=value,group=variable,color=variable))+ geom_point(size = 3)+xlab("Gene index")+ylab("Count")+scale_x_continuous(limits=c(1,17),breaks=seq(1,17,1))+scale_y_continuous(limits=c(0,5),breaks=seq(0,5,1)) + theme(axis.line = element_line(colour = "black"))+scale_color_manual(values =c('#E69F00','#56B4E9'))+ theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+theme(legend.position="none")
+
+write.table(multi_hits_b100000,"3_multi_hits_noncoding_method1",quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t")
+
+
+```
+
+
+```{r}
+observed_counts <- c(2778, 47)
+
+
+total_bp_coding <- 8855600
+total_bp_noncoding <- 3301505
+total_bp_genome <- total_bp_coding + total_bp_noncoding
+
+expected_coding_ratio <- total_bp_coding/total_bp_genome
+expected_noncoding_ratio <- total_bp_noncoding/total_bp_genome
+expected_counts_ratio <- c(expected_coding_ratio,expected_noncoding_ratio)
+#> expected_counts_ratio
+#[1] 0.72843 0.27157
+chi_square_test <- chisq.test(observed_counts, p = expected_counts_ratio)
+
+#chi_square_test$p.value
+#[1] 4.294336e-213
+
+#test <- binom.test(2778,2778+47,expected_coding_ratio)
+# test$p.value
+#9.752356e-307
+
+```
+
