@@ -1,0 +1,113 @@
+
+
+```{r}
+
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+library(gplots)
+library(corrplot)
+library(gplots)
+library(dynamicTreeCut)
+library(fastcluster)
+library(WGCNA)
+
+ordered <- read.table("20_order_id.txt",header=T)
+hip <- read.table("fitness_defect_matrix_het.txt",header=T,sep="\t",row.names=1)
+hip_ordered <- hip[,(which(colnames(hip) %in% ordered[,1]))]
+
+hop <- read.table("fitness_defect_matrix_hom.txt",header=T,sep="\t",row.names=1)
+hop_ordered <- hop[,(which(colnames(hop) %in% ordered[,1]))]
+
+hiphop_combine <- rbind(hip_ordered,hop_ordered)
+hiphop_combine <- na.omit(hiphop_combine)
+hiphop_combine_m <- as.matrix(hiphop_combine)
+hiphop_cor <- cor(hiphop_combine_m,method = c("pearson"))
+
+pdf("corr_heatmap.pdf",width=24,height=24)
+col<- colorRampPalette(c("blue", "white", "red"))(20)
+heatmap_combine <- heatmap.2(hiphop_cor,cexCol=0.2,cexRow=0.2, dendrogram="both",col=col,trace="none",symm=TRUE,revC=TRUE,keysize=0.8,distfun = function(x) dist(x, method="euclidean"),hclustfun = function(x) hclust(x, method="complete"))
+ordered_conditions <- rownames(hiphop)[heatmap_combine$rowInd]
+
+hc <- as.hclust(heatmap_combine$colDendrogram)
+ct1 <-cutree(hc, h=3)   #6.5
+dynamicColors1 <- labels2colors(ct1)
+
+ct2<-cutree(hc, h=4)      #6
+dynamicColors2 <- labels2colors(ct2)
+
+plotDendroAndColors(dendro=hc,cbind(dynamicColors1, dynamicColors2),dendroLabels= FALSE)
+
+ct<-cutree(hc, h=4)[hc$order]
+write.table(ct,file="20_cluster_gene_list_cut4",append=FALSE,row.names =TRUE,quote = FALSE,sep="\t")
+
+ct_data <- data.frame(ct)
+ct_data$env <- rownames(ct_data)
+
+envid <- read.table("20_env_id.txt",header=T,sep="\t")
+
+ct_data$pick <-envid$NO[match(ct_data$env,envid$env)]
+ct_data_rmna <- na.omit(ct_data)
+table(ct_data$ct)
+table(ct_data_rmna$ct)
+```
+
+
+
+
+```{r}
+
+
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+library(gplots)
+library(corrplot)
+
+ordered <- read.table("20_order_id.txt",header=T)
+hip <- read.table("fitness_defect_matrix_het.txt",header=T,sep="\t",row.names=1)
+hip <- as.matrix(hip)
+
+hip_ordered <- hip[,(which(colnames(hip) %in% ordered[,1]))]
+hip_ordered_m <- as.matrix(hip_ordered)
+
+hop <- read.table("fitness_defect_matrix_hom.txt",header=T,sep="\t",row.names=1)
+hop <- as.matrix(hop)
+
+hop_ordered <- hop[,(which(colnames(hop) %in% ordered[,1]))]
+hop_ordered_m <- as.matrix(hop_ordered)
+
+
+#correlation matrix
+hip_ordered_m2 <- na.omit(hip_ordered_m) 
+hop_ordered_m2 <- na.omit(hop_ordered_m)   #remove rows with NA values
+
+hip_cor <- cor(hip_ordered_m2,method = c("pearson"))
+hop_cor <- cor(hop_ordered_m2,method = c("pearson"))
+
+write.table(hip_cor,file="20_hip_cor",sep="\t",append=FALSE,col.names=NA)
+write.table(hop_cor,file="20_hop_cor",sep="\t",append=FALSE,col.names=NA)
+ 
+
+hiphop <- read.table("hiphop_cor",header=T,sep="\t",row.names=1)
+hiphop <- as.matrix(hiphop)
+
+setwd("C:/Users/chenp/Desktop/400 environments/hiphop")
+ #corrplot
+pdf("corrplot_hiphop.pdf",width=24,height=24)
+corrplot(hiphop, method = "color",type = "upper", order = "hclust", number.cex = .01, addCoef.col = "black", tl.col = "black", tl.srt = 90, tl.cex = 0.1, insig = "blank",diag = FALSE)
+dev.off()
+
+ #cor_heatmap.2
+pdf("corr_heatmap.pdf",width=24,height=24)
+col<- colorRampPalette(c("blue", "white", "red"))(20)
+heatmap.2(hiphop,cexCol=0.2,cexRow=0.2, dendrogram="both",col=col,trace="none",symm=TRUE,revC=TRUE,keysize=0.8,distfun = function(x) dist(x, method="euclidean"),hclustfun = function(x) hclust(x, method="complete"))
+dev.off()
+
+#ouput the reordered list 
+hea <- heatmap.2(hiphop,cexCol=0.2,cexRow=0.2, dendrogram="both",col=col,trace="none",symm=TRUE,revC=TRUE,keysize=0.8)
+ordered_conditions <- rownames(hiphop)[hea$rowInd]
+
+
+
+```
+
+
