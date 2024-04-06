@@ -14,8 +14,6 @@ setwd("C:/Users/chenp/OneDrive - Umich/Environment250/constant252/crispr/test_fi
 fitness_data <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/fitness/results_4reps/combined_fitness",sep="\t",header=T,fill=TRUE)
 fitness_data$Envs <- gsub("env_", "Env", fitness_data$Env)
 fitness_data <- fitness_data[,c(12,4)]
-fitness_data[234,1] <- "Env224"
-fitness_data[234,2] <- 0.995
 
 ########################all
 IRA2 <- read.xlsx(file="1_IRA2.xlsx", sheetIndex = 1) %>% mutate(gene = "IRA2")
