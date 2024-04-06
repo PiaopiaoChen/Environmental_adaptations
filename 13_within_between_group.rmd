@@ -1,0 +1,146 @@
+
+```{r}
+
+
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+library(reshape2)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+env_cluster <- read.table("21_envs_groups.txt",sep="\t",header=T,fill=TRUE)
+
+
+env_all_gene_hits_b100000 <- read.table("1_env_all_gene_hits_b100000",sep="\t",header=T,fill=TRUE)
+env_all_gene_hits_b100000_multi <- env_all_gene_hits_b100000 %>% filter(group == "multi") %>% mutate(gene_env= paste(gene,env,sep="/"))
+
+env_all_gene_hits_b100000_multi$cluster1 <- env_cluster$cluster1[match(env_all_gene_hits_b100000_multi$env,env_cluster$env)]
+env_all_gene_hits_b100000_multi$cluster2 <- env_cluster$cluster2[match(env_all_gene_hits_b100000_multi$env,env_cluster$env)]
+
+cluster <- unique(env_cluster$cluster1)
+Envs_all <- unique(env_all_gene_hits_b100000_multi$env)
+
+fre <- data.frame(table(env_cluster$cluster1))
+fre$Var1  <- factor(fre$Var1 ,levels=c("group10","group8","group4","group9","group1","group7","group3","group6","group2","group5","Metabolites","Nitrogen ","Toxin","depletion","Carbon "))
+
+#fre$Var1  <- factor(fre$Var1 ,levels=c("Carbon ","depletion","Toxin","Nitrogen ","Metabolites","group5","group2","group6","group3","group7","group1","group9","group4","group8","group10"))
+###7.4*6.8
+ggplot(fre,aes(Var1,Freq,label=Freq))+geom_bar(stat="identity",width=0.5)+geom_text(size=5,hjust=1)+coord_flip()+theme_bw()+scale_y_continuous(limits=c(0,10),breaks=seq(0,10,2))
+
+
+```
+
+
+```{r}
+
+#within group similarity
+Dices_same_group_all <- NULL
+Dices_same_group_average_all <- NULL
+Dices_same_group_num <- NULL
+for (k in 1:length(cluster)){
+  Dices_same_group <- NULL
+  env_multi_cluster <- env_all_gene_hits_b100000_multi %>% filter(cluster1 %in% cluster[k])
+  Envs <- unique(env_multi_cluster$env)
+  comb <- data.frame(t(combn(1:length(Envs),2)))
+   for (i in 1:nrow(comb)){
+       Envs_pairs <- c(Envs[comb[i,1]], Envs[comb[i,2]])
+       Env_one_adaptive <- env_multi_cluster %>% filter(env %in% Envs_pairs[1])
+       Env_two_adaptive <- env_multi_cluster %>% filter(env %in% Envs_pairs[2])
+       Dices_temp <- 2*length(intersect(Env_one_adaptive$gene,Env_two_adaptive$gene))/(length(Env_one_adaptive$gene)+length(Env_two_adaptive$gene))
+       Dices_same_group <- c(Dices_same_group,Dices_temp)
+    }  
+    Dices_same_group_all <- c(Dices_same_group_all,Dices_same_group)
+    Dices_same_group_num <- c(Dices_same_group_num,length(Dices_same_group))
+    Dices_same_group_average_all<- c(Dices_same_group_average_all,mean(Dices_same_group))
+}
+
+
+```
+
+
+
+
+```{r}
+#different group similarity
+Dices_different_group_all <- NULL
+Dices_different_group_average_all <- NULL
+Dices_different_group_num <- NULL
+for (k in 1:length(cluster)){
+  cluster_one <- env_all_gene_hits_b100000_multi[which(env_all_gene_hits_b100000_multi$cluster1 == cluster[k]),]
+  Envs <- unique(cluster_one$env)
+  Envs_others <- Envs_all[!Envs_all %in% Envs]  
+  Dices_different_group <- NULL
+   for (i in 1:length(Envs)){
+      for (j in 1:length(Envs_others)){
+        Envs_pairs <- c(Envs[i], Envs_others[j])
+        Env_one_adaptive <- cluster_one %>% filter(env %in% Envs_pairs[1])
+        Env_two_adaptive <- env_all_gene_hits_b100000_multi %>% filter(env %in% Envs_pairs[2])
+        Dices_temp <- 2*length(intersect(Env_one_adaptive$gene,Env_two_adaptive$gene))/(length(Env_one_adaptive$gene)+length(Env_two_adaptive$gene))
+        Dices_different_group <- c(Dices_different_group,Dices_temp)
+      }
+   }
+      Dices_different_group_all <- c(Dices_different_group_all,Dices_different_group)
+      Dices_different_group_num <- c(Dices_different_group_num,length(Dices_different_group))
+      Dices_different_group_average_all<- c(Dices_different_group_average_all,mean(Dices_different_group))
+}
+
+t.test(Dices_same_group_average_all,Dices_different_group_average_all,paired=TRUE)
+#p-value = 0.2656
+t.test(Dices_same_group_average_all[6:15],Dices_different_group_average_all[6:15],paired=TRUE)
+#p-value = 0.5469
+
+
+##group1
+wilcox.test(Dices_same_group_all[1:Dices_same_group_num[1]],Dices_different_group_all[1:Dices_different_group_num[1]])
+##group2
+wilcox.test(Dices_same_group_all[(Dices_same_group_num[1]+1):sum(Dices_same_group_num[1:2])],Dices_different_group_all[(Dices_different_group_num[1]+1):sum(Dices_different_group_num[1:2])])
+##group3
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:2])+1):sum(Dices_same_group_num[1:3])],Dices_different_group_all[(sum(Dices_different_group_num[1:2])+1):sum(Dices_different_group_num[1:3])])
+#p-value = 0.007458
+##group4
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:3])+1):sum(Dices_same_group_num[1:4])],Dices_different_group_all[(sum(Dices_different_group_num[1:3])+1):sum(Dices_different_group_num[1:4])])
+#p-value = 4.09e-06
+##group5
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:4])+1):sum(Dices_same_group_num[1:5])],Dices_different_group_all[(sum(Dices_different_group_num[1:4])+1):sum(Dices_different_group_num[1:5])])
+##group6
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:5])+1):sum(Dices_same_group_num[1:6])],Dices_different_group_all[(sum(Dices_different_group_num[1:5])+1):sum(Dices_different_group_num[1:6])])
+#p-value = 0.002445
+##group7
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:6])+1):sum(Dices_same_group_num[1:7])],Dices_different_group_all[(sum(Dices_different_group_num[1:6])+1):sum(Dices_different_group_num[1:7])])
+##group8
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:7])+1):sum(Dices_same_group_num[1:8])],Dices_different_group_all[(sum(Dices_different_group_num[1:7])+1):sum(Dices_different_group_num[1:8])])
+##group9
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:8])+1):sum(Dices_same_group_num[1:9])],Dices_different_group_all[(sum(Dices_different_group_num[1:8])+1):sum(Dices_different_group_num[1:9])])
+##group10
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:9])+1):sum(Dices_same_group_num[1:10])],Dices_different_group_all[(sum(Dices_different_group_num[1:9])+1):sum(Dices_different_group_num[1:10])])
+# p-value = 0.04706
+
+##group11
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:10])+1):sum(Dices_same_group_num[1:11])],Dices_different_group_all[(sum(Dices_different_group_num[1:10])+1):sum(Dices_different_group_num[1:11])])
+##group12
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:11])+1):sum(Dices_same_group_num[1:12])],Dices_different_group_all[(sum(Dices_different_group_num[1:11])+1):sum(Dices_different_group_num[1:12])])
+##group13
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:12])+1):sum(Dices_same_group_num[1:13])],Dices_different_group_all[(sum(Dices_different_group_num[1:12])+1):sum(Dices_different_group_num[1:13])])
+##group14
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:13])+1):sum(Dices_same_group_num[1:14])],Dices_different_group_all[(sum(Dices_different_group_num[1:13])+1):sum(Dices_different_group_num[1:14])])
+##group15
+wilcox.test(Dices_same_group_all[(sum(Dices_same_group_num[1:14])+1):sum(Dices_same_group_num[1:15])],Dices_different_group_all[(sum(Dices_different_group_num[1:14])+1):sum(Dices_different_group_num[1:15])])
+
+
+
+
+
+
+combined <- data.frame(values= c(Dices_same_group_average_all,Dices_different_group_average_all), group1  = c(cluster,cluster), group2 = c(rep("within",15),rep("between",15)), group3 = c(rep("class1",5),rep("class2",10),rep("class1",5),rep("class2",10)))
+combined$group2  <- factor(combined$group2 ,levels=c("within","between"))
+
+#21_within_between_groups.pdf
+ggplot(combined,aes(group2,values,group=group1,fill=group3))+ geom_point(aes(color = group3),size=4)+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ylab("similarity")+theme(axis.title = element_text(size=14), axis.text.x = element_text(size=14), axis.text.y = element_text(size=14))+ theme(panel.border = element_rect(linetype = "solid", colour = "grey", fill = NA), panel.grid.major = element_line(color = "grey", linetype = "dotted"), panel.grid.minor = element_line(colour = "grey", linetype = "dotted"), panel.background = element_blank(), axis.line = element_line(colour = "grey40"))+ theme(legend.position="none")+geom_line(aes(group2))
+
+#+scale_y_continuous(limits=c(0,0.4),breaks=seq(0,0.4,0.1))
+
+
+
+
+```
+
