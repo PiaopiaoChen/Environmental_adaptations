@@ -1,0 +1,312 @@
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+
+mydata <- read.table("1_mutation_constant252",sep="\t",header=T,fill=TRUE)
+mydata$type2[which(mydata$type2 == "First")] <- "N"
+
+###remove indel without frameshift
+for (i in 1:nrow(mydata)){
+    if(mydata[i,8] == "indel"){
+        nt_num <- abs(length(strsplit(mydata$ref[i], "")[[1]]) -  length(strsplit(mydata$alt[i], "")[[1]]))
+		if ((nt_num %% 3) == 0){
+		   mydata[i,8] = "indel_no_frameshift"
+		}else{
+		   mydata[i,8] = "indel_with_frameshift"
+        }
+	}
+}
+
+mydata$gene_env <- paste(mydata$gene2,mydata$env_name,sep="/")
+
+env_all_gene_hits_b100000 <- read.table("1_env_all_gene_hits_b100000",sep="\t",header=T,fill=TRUE)
+env_all_gene_hits_b100000_multi <- env_all_gene_hits_b100000 %>% filter(group == "multi") %>% mutate(gene_env= paste(gene,env,sep="/"))
+mydata_multi_hits <- mydata %>% filter(gene_env %in% env_all_gene_hits_b100000_multi$gene_env)
+
+```
+
+
+
+```{r}
+
+dir1="C:/Users/chenp/OneDrive - Umich/Environment250/constant252/crispr"
+setwd(dir1)
+
+#gene IRA2
+gene_IRA2 <- mydata %>% filter(gene2 == "IRA2") %>% mutate(loc2 = .$loc-171070+1)
+gene_IRA2_rmdup <- gene_IRA2 %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_IRA2$type2)
+length(unique(gene_IRA2$env_name))
+length(unique(gene_IRA2$sample_name))
+
+gene_IRA2_MG <- mydata_multi_hits %>% filter(gene2 == "IRA2") %>% mutate(loc2 = .$loc-171070+1)
+gene_IRA2_MG_rmdup <- gene_IRA2_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+nrow(gene_IRA2_MG)
+table(gene_IRA2_MG$type2)
+length(unique(gene_IRA2_MG$env_name))
+length(unique(gene_IRA2_MG$sample_name))
+
+len_IRA2 <- 9240
+
+gene_IRA2_MG_2 <- gene_IRA2_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_IRA2_MG_2_nums <- data.frame(table(gene_IRA2_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_IRA2_MG_2 <- gene_IRA2_MG_2 %>% merge(gene_IRA2_MG_2_nums,by="loc3")
+
+gene_IRA2_MG_2_rmdup <- gene_IRA2_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+  
+# 2_IRA2_mutation_distribution.pdf  9*5.5
+ggplot(gene_IRA2_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,9240))+scale_y_continuous(limits=c(0,76))+scale_y_break(breaks=c(35,60), scales = 0.2) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+
+```
+
+
+
+```{r}
+#gene PDR1
+gene_PDR1 <- mydata %>% filter(gene2 == "PDR1") %>% mutate(loc2 = 472298 - .$loc +1)
+gene_PDR1_rmdup <- gene_PDR1 %>% distinct(loc,ref,alt,.keep_all = TRUE) %>% mutate(loc3= paste(type2,loc,sep="/")) %>% mutate(hits2 = 1)
+table(gene_PDR1$type2)
+length(unique(gene_PDR1$env_name))
+length(unique(gene_PDR1$sample_name))
+
+gene_PDR1_MG <- mydata_multi_hits %>% filter(gene2 == "PDR1") %>% mutate(loc2 = 472298 - .$loc +1)
+gene_PDR1_MG_rmdup <- gene_PDR1_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+nrow(gene_PDR1_MG)
+table(gene_PDR1_MG$type2)
+length(unique(gene_PDR1_MG$env_name))
+length(unique(gene_PDR1_MG$sample_name))
+
+len_PDR1 <- 3207
+PDR1<-data.frame(table(gene_PDR1$loc2))
+
+gene_PDR1_MG_2 <- gene_PDR1_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_PDR1_MG_2_nums <- data.frame(table(gene_PDR1_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_PDR1_MG_2 <- gene_PDR1_MG_2 %>% merge(gene_PDR1_MG_2_nums,by="loc3")
+
+gene_PDR1_MG_2_rmdup <- gene_PDR1_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+
+
+#ggplot(gene_PDR1_rmdup, aes(x=loc2,y=hits,color=type2,fill=type2)) + geom_point(size = 1.2)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,3207))+scale_y_continuous(limits=c(0,35))+ theme_minimal() +theme(axis.line = element_line(colour = "black"))+ scale_color_brewer(palette="Set1")
+#+theme(legend.position="none")
+#+geom_line(size = 0.5, color="#999999",linetype = 2)
+
+#2_PDR1_mutation_distribution.pdf  9*5.5
+ggplot(gene_PDR1_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,3207))+scale_y_continuous(limits=c(0,30)) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+```
+
+
+
+```{r}
+#gene GNP1
+gene_GNP1 <- mydata %>% filter(gene2 == "GNP1") %>% mutate(loc2 = 1468444 - .$loc +1)
+gene_GNP1_rmdup <- gene_GNP1 %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_GNP1$type2)
+length(unique(gene_GNP1$env_name))
+length(unique(gene_GNP1$sample_name))
+
+
+gene_GNP1_MG <- mydata_multi_hits %>% filter(gene2 == "GNP1") %>% mutate(loc2 = 1468444 - .$loc +1)
+gene_GNP1_MG_rmdup <- gene_GNP1_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_GNP1_MG$type2)
+length(unique(gene_GNP1_MG$env_name))
+length(unique(gene_GNP1_MG$sample_name))
+
+len_GNP1 <- 1992
+
+gene_GNP1_MG_2 <- gene_GNP1_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_GNP1_MG_2_nums <- data.frame(table(gene_GNP1_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_GNP1_MG_2 <- gene_GNP1_MG_2 %>% merge(gene_GNP1_MG_2_nums,by="loc3")
+
+gene_GNP1_MG_2_rmdup <- gene_GNP1_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+
+ggplot(gene_GNP1_rmdup, aes(x=loc2,y=hits,color=type2))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,1992))+scale_y_continuous(limits=c(0,10))+ theme_minimal() +theme(axis.line = element_line(colour = "black"))
+
+#3_GNP1_mutation_distribution.pdf  9*5.5
+ggplot(gene_GNP1_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,1992))+scale_y_continuous(limits=c(0,10),breaks=seq(0,10,2)) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+```
+
+
+
+```{r}
+#gene PDR3
+gene_PDR3 <- mydata %>% filter(gene2 == "PDR3") %>% mutate(loc2 = .$loc-217470+1)
+gene_PDR3_rmdup <- gene_PDR3 %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_PDR3$type2)
+length(unique(gene_PDR3$env_name))
+length(unique(gene_PDR3$sample_name))
+
+len_PDR3 <- 2931
+
+gene_PDR3_MG <- mydata_multi_hits %>% filter(gene2 == "PDR3") %>% mutate(loc2 = .$loc-217470+1)
+gene_PDR3_MG_rmdup <- gene_PDR3_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_PDR3_MG$type2)
+length(unique(gene_PDR3_MG$env_name))
+length(unique(gene_PDR3_MG$sample_name))
+
+gene_PDR3_MG_2 <- gene_PDR3_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_PDR3_MG_2_nums <- data.frame(table(gene_PDR3_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_PDR3_MG_2 <- gene_PDR3_MG_2 %>% merge(gene_PDR3_MG_2_nums,by="loc3")
+
+gene_PDR3_MG_2_rmdup <- gene_PDR3_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+
+
+#4_PDR3_mutation_distribution.pdf  9*5.5
+
+ggplot(gene_PDR3_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,2931))+scale_y_continuous(limits=c(0,25),breaks = seq(0, 25, by = 5)) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+```
+
+
+
+
+
+```{r}
+#gene PDR5
+gene_PDR5 <- mydata %>% filter(gene2 == "PDR5") %>% mutate(loc2 = .$loc-619840+1)
+gene_PDR5_rmdup <- gene_PDR5 %>% distinct(loc,ref,alt,.keep_all = TRUE)
+
+len_PDR5 <- 4536
+
+table(gene_PDR5$type2)
+length(unique(gene_PDR5$env_name))
+length(unique(gene_PDR5$sample_name))
+
+gene_PDR5_MG <- mydata_multi_hits %>% filter(gene2 == "PDR5") %>% mutate(loc2 = .$loc-619840+1)
+gene_PDR5_MG_rmdup <- gene_PDR5_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_PDR5_MG$type2)
+length(unique(gene_PDR5_MG$env_name))
+length(unique(gene_PDR5_MG$sample_name))
+
+gene_PDR5_MG_2 <- gene_PDR5_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_PDR5_MG_2_nums <- data.frame(table(gene_PDR5_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_PDR5_MG_2 <- gene_PDR5_MG_2 %>% merge(gene_PDR5_MG_2_nums,by="loc3")
+
+gene_PDR5_MG_2_rmdup <- gene_PDR5_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+
+#5_PDR5_mutation_distribution.pdf  9*5.5
+
+ggplot(gene_PDR5_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,4536))+scale_y_continuous(limits=c(0,10),breaks = seq(0, 10, by = 2)) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+```
+
+
+
+
+
+
+```{r}
+#gene RAS2
+gene_RAS2 <- mydata %>% filter(gene2 == "RAS2") %>% mutate(loc2 = 440570 - .$loc +1)
+gene_RAS2_rmdup <- gene_RAS2 %>% distinct(loc,ref,alt,.keep_all = TRUE)
+
+len_RAS2 <- 969
+
+table(gene_RAS2$type2)
+length(unique(gene_RAS2$env_name))
+length(unique(gene_RAS2$sample_name))
+
+gene_RAS2_MG <- mydata_multi_hits %>% filter(gene2 == "RAS2") %>% mutate(loc2 = 440570 - .$loc +1)
+gene_RAS2_MG_rmdup <- gene_RAS2_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_RAS2_MG$type2)
+length(unique(gene_RAS2_MG$env_name))
+length(unique(gene_RAS2_MG$sample_name))
+
+gene_RAS2_MG_2 <- gene_RAS2_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_RAS2_MG_2_nums <- data.frame(table(gene_RAS2_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_RAS2_MG_2 <- gene_RAS2_MG_2 %>% merge(gene_RAS2_MG_2_nums,by="loc3")
+
+gene_RAS2_MG_2_rmdup <- gene_RAS2_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+
+#6_RAS2_mutation_distribution.pdf  9*5.5
+
+ggplot(gene_RAS2_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,969))+scale_y_continuous(limits=c(0,15),breaks = seq(0, 15, by = 5)) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+
+
+```
+
+
+
+
+```{r}
+#gene WHI2
+gene_WHI2 <- mydata %>% filter(gene2 == "WHI2") %>% mutate(loc2 = .$loc-410870+1)
+gene_WHI2_rmdup <- gene_WHI2 %>% distinct(loc,ref,alt,.keep_all = TRUE)
+
+len_WHI2 <- 1461
+
+table(gene_WHI2$type2)
+length(unique(gene_WHI2$env_name))
+length(unique(gene_WHI2$sample_name))
+
+gene_WHI2_MG <- mydata_multi_hits %>% filter(gene2 == "WHI2") %>% mutate(loc2 = .$loc-410870+1)
+gene_WHI2_MG_rmdup <- gene_WHI2_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_WHI2_MG$type2)
+length(unique(gene_WHI2_MG$env_name))
+length(unique(gene_WHI2_MG$sample_name))
+
+gene_WHI2_MG_2 <- gene_WHI2_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_WHI2_MG_2_nums <- data.frame(table(gene_WHI2_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_WHI2_MG_2 <- gene_WHI2_MG_2 %>% merge(gene_WHI2_MG_2_nums,by="loc3")
+
+gene_WHI2_MG_2_rmdup <- gene_WHI2_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+
+#7_WHI2_mutation_distribution.pdf  9*5.5
+
+ggplot(gene_WHI2_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,1461))+scale_y_continuous(limits=c(0,8),breaks = seq(0, 8, by = 2)) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+
+```
+
+
+
+
+
+
+```{r}
+#gene YRR1
+gene_YRR1 <- mydata %>% filter(gene2 == "YRR1") %>% mutate(loc2 = 641992 - .$loc +1)
+gene_YRR1_rmdup <- gene_YRR1 %>% distinct(loc,ref,alt,.keep_all = TRUE)
+
+len_YRR1 <- 2433
+
+table(gene_YRR1$type2)
+length(unique(gene_YRR1$env_name))
+length(unique(gene_YRR1$sample_name))
+
+gene_YRR1_MG <- mydata_multi_hits %>% filter(gene2 == "YRR1") %>% mutate(loc2 = 641992 - .$loc +1)
+gene_YRR1_MG_rmdup <- gene_YRR1_MG %>% distinct(loc,ref,alt,.keep_all = TRUE)
+table(gene_YRR1_MG$type2)
+length(unique(gene_YRR1_MG$env_name))
+length(unique(gene_YRR1_MG$sample_name))
+
+gene_YRR1_MG_2 <- gene_YRR1_MG %>% mutate(loc3= paste(type2,loc,sep="/"))
+gene_YRR1_MG_2_nums <- data.frame(table(gene_YRR1_MG_2$loc3)) %>% setNames(c("loc3","hits2"))
+gene_YRR1_MG_2 <- gene_YRR1_MG_2 %>% merge(gene_YRR1_MG_2_nums,by="loc3")
+
+gene_YRR1_MG_2_rmdup <- gene_YRR1_MG_2 %>% distinct(loc3,.keep_all = TRUE)
+
+#8_YRR1_mutation_distribution.pdf  9*5.5
+
+ggplot(gene_YRR1_MG_2_rmdup, aes(x=loc2,y=hits2,color=type2,fill=type2)) + geom_point(size = 3,alpha=0.6)+theme_bw()+xlab("Position")+ylab("Count")+scale_x_continuous(limits=c(0,2433))+scale_y_continuous(limits=c(0,6),breaks = seq(0, 6, by = 2)) +theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) + scale_color_brewer(palette="Set1")
+
+
+```
+
+
