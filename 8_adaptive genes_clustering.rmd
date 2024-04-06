@@ -1,0 +1,116 @@
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(plyr)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+
+mydata <- read.table("1_mutation_constant252",sep="\t",header=T,fill=TRUE)
+mydata$type2[which(mydata$type2 == "First")] <- "N"
+for (i in 1:nrow(mydata)){
+    if(mydata[i,8] == "indel"){
+        nt_num <- abs(length(strsplit(mydata$ref[i], "")[[1]]) -  length(strsplit(mydata$alt[i], "")[[1]]))
+		if ((nt_num %% 3) == 0){
+		   mydata[i,8] = "indel_no_frameshift"
+		}else{
+		   mydata[i,8] = "indel_with_frameshift"
+        }
+	}
+}
+mydata2 <- mydata %>% distinct(sample_name, gene2, .keep_all = TRUE)
+
+mydata_MG <- read.table("1_multiple_hits_genes",sep="\t",header=T,fill=TRUE)
+
+```
+
+```{r}
+#MG_env_hit <- data.frame(table(mydata2$env_name,mydata2$gene2)) %>% filter(Freq > 0)
+Envs <- unique(mydata2$env_name)
+total_number <- NULL
+for (i in 1:nrow(mydata_MG)){
+  specific_gene <- mydata2[which(mydata2$gene2 == mydata_MG$gene[i]),]
+  total_number_temp <- NULL
+  for (j in Envs){
+     number_temp <- length(which(specific_gene$env_name == j))
+     total_number_temp <- c(total_number_temp,number_temp)
+  }
+  total_number<- rbind(total_number,total_number_temp)
+}
+
+total_number <- data.frame(total_number) %>% setNames(.,Envs) %>% "rownames<-"(mydata_MG$gene)
+#total_number$rm <- apply(total_number,1,function(x) sum(x>1))
+#total_number <- total_number[total_number$rm > 0,]
+write.table(total_number,file="12_MG_hits_nums.txt",sep="\t",append=FALSE,row.names=TRUE,col.names=TRUE,quote = FALSE)
+
+```
+
+
+```{r}
+library("gplots")
+
+
+total_number_order <- read.table("12_reordered_MG_hits_nums.txt",sep="\t",header=T,fill=TRUE)
+rownames(total_number_order) <- total_number_order$gene
+total_number_order <- total_number_order[-1]
+total_number_order <- as.matrix(total_number_order)
+
+myout <- heatmap.2(total_number_order, dendrogram="none", Rowv=FALSE, Colv=TRUE,trace='none',col = colorRampPalette(c('white', 'red'))(13))
+plot(myout$rowDendrogram)
+
+################order environments
+order_row <- data.frame(gene=colnames(total_number_order)[myout$colInd])
+total_number_order2 <- data.frame(t(total_number_order)) %>% mutate(gene=rownames(.))
+total_number_order3 <- join(order_row,total_number_order2,by="gene")
+rownames(total_number_order3) <- total_number_order3$gene
+total_number_order3 <- total_number_order3[-1]
+total_number_order4 <- t(as.matrix(total_number_order3))
+write.table(total_number_order4,file="12_clustering.txt",sep="\t",append=FALSE,row.names=TRUE,col.names=TRUE,quote = FALSE)
+
+#########12_plot_whole_heatmap.pdf   20*50
+heatmap.2(total_number_order4, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(13),keysize=0.5,key.par=list(cex=0.5))
+
+
+```
+
+
+
+
+
+
+
+```{r}
+
+##############groups
+#########12_plot_group1_heatmap.pdf  12*6 
+total_number_order_group1 <- total_number_order4[1:21,]
+heatmap.2(total_number_order_group1, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(50),keysize=0.5,key.par=list(cex=0.5))
+
+#########12_plot_group2_heatmap.pdf  12*9
+total_number_order_group2 <- total_number_order4[22:55,]
+heatmap.2(total_number_order_group2, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(50),keysize=0.5,key.par=list(cex=0.5))
+
+#########12_plot_group3_heatmap.pdf  12*3
+total_number_order_group3 <- total_number_order4[56:75,]
+heatmap.2(total_number_order_group3, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(50),keysize=0.5,key.par=list(cex=0.5))
+
+#########12_plot_group4_heatmap.pdf  12*3
+total_number_order_group4 <- total_number_order4[76:92,]
+heatmap.2(total_number_order_group4, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(50),keysize=0.5,key.par=list(cex=0.5))
+
+#########12_plot_group5_heatmap.pdf  12*12
+total_number_order_group5 <- total_number_order4[93:101,]
+heatmap.2(total_number_order_group5, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(50),keysize=0.5,key.par=list(cex=0.5))
+
+#########12_plot_group6_heatmap.pdf  12*6.5
+total_number_order_group6 <- total_number_order4[102:108,]
+heatmap.2(total_number_order_group6, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(50),keysize=0.5,key.par=list(cex=0.5))
+
+#########12_plot_group7_heatmap.pdf  12*12
+total_number_order_group7 <- total_number_order4[115:149,]
+heatmap.2(total_number_order_group6, dendrogram="none", Rowv=FALSE, Colv=FALSE,trace='none',col = colorRampPalette(c('white', 'red'))(50),keysize=0.5,key.par=list(cex=0.5))
+
+
+```
+
