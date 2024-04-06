@@ -1,0 +1,278 @@
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+library(tibble)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+
+mydata <- read.table("1_mutation_constant252",sep="\t",header=T,fill=TRUE)
+mydata$type2[which(mydata$type2 == "First")] <- "N"
+
+gene_info <- read.table("all_gene_info",sep="\t",header=T,fill=TRUE,quote="")
+gene_length_ES <- gene_info[,c(1,2,6,3)]
+
+gene_len_rm_overlap <- read.table("all_gene_loc_length_exon_rm_overlapped_short_check_intron",sep="\t",header=F,fill=TRUE,quote="") %>% select(V1,V4) %>% setNames(c("ORF","length_rm_overlap")) %>% merge(gene_length_ES,by="ORF") %>%  select(ORF,gene,length_rm_overlap,length,ES) 
+
+envs <- data.frame(unique(mydata$env_name)) %>% setNames(c("envs"))
+
+mydata_rmdup <- mydata %>% distinct(sample_name, gene2, .keep_all = TRUE)
+
+
+```
+
+
+
+```{r  eval = FALSE, echo = FALSE}
+##############run in cluster#################
+
+gene_pool <- NULL
+for (i in 1:nrow(gene_len_rm_overlap)){
+  gene_temp <- rep(gene_len_rm_overlap$gene[i],gene_len_rm_overlap$length_rm_overlap[i])
+  gene_pool <- c(gene_pool,gene_temp)
+}
+
+envs <- unique(mydata$env_name)
+MG_env_all <- NULL
+#for (i in 1:length(envs)){
+for (i in 1:1){
+    mydata_env <- mydata %>% filter(env_name==envs[i])
+    mydata2_env <-  mydata_env %>% distinct(sample_name, gene2, .keep_all = TRUE)
+     
+    GFAS_env <- data.frame(table(mydata2_env$gene2)) %>% setNames(c("gene","no_of_samples")) %>% merge(gene_len_rm_overlap,by=("gene")) %>% .[order(-.$no_of_samples),]
+
+    ###########random number of mutations
+    mydata_env_sim <- mydata_env[,c(1:2)]
+    
+    #######simulations
+    GFAS_env_sim_all <- select(GFAS_env,gene)
+    for (bb in 1:100){
+      GFAS_env_sim_all_temp <- select(GFAS_env,gene)
+      
+      for (aa in 1:100){
+         sample1 <- sample(gene_pool,nrow(mydata_env),replace = TRUE)
+         mydata_env_sim$gene2 <- sample1
+         mydata_env_sim2 <- mydata_env_sim %>% distinct(sample_name, gene2, .keep_all = TRUE)
+         #gene_frequency_among_samples
+              GFAS_sim <- data.frame(table(mydata_env_sim2$gene2)) %>% setNames(c("gene",paste("rep",aa+1000*(bb-1),sep="")))
+              GFAS_env_sim_all_temp <- merge(GFAS_env_sim_all_temp,GFAS_sim,by="gene",all.x=TRUE)
+      }
+      GFAS_env_sim_all_temp[is.na(GFAS_env_sim_all_temp)] <- 0
+      GFAS_env_sim_all <- merge(GFAS_env_sim_all,GFAS_env_sim_all_temp,by="gene",all.x=TRUE)
+      print (bb)
+    }
+    
+    MG_True_Sim_env <- merge(GFAS_env,GFAS_env_sim_all,by="gene",all.x=TRUE)
+    rm(GFAS_env_sim_all,GFAS_env_sim_all_temp)
+    
+    
+    p_env_all <- NULL
+    for (cc in 1:nrow(MG_True_Sim_env)){
+      p_env_all_temp <- sum(MG_True_Sim_env[cc,7:ncol(MG_True_Sim_env)] >= MG_True_Sim_env$no_of_samples[cc]) / (ncol(MG_True_Sim_env)-6)
+      p_env_all <- c(p_env_all,p_env_all_temp)
+      print (cc)
+    }
+    p_env_no_of_samples <- data.frame(gene=MG_True_Sim_env$gene, p_no_of_samples=p_env_all)
+    
+    MG_env <- GFAS_env %>% merge(p_env_no_of_samples,by="gene")  %>% mutate(padj_no_of_samples=p.adjust(.$p_no_of_samples, method = "fdr", n = nrow(gene_len_rm_overlap))) %>% mutate(group=ifelse(.$padj_no_of_samples < 0.05, "multi","others")) %>% .[order(.$group,-.$no_of_samples),]  %>% mutate(env=envs[i])
+    MG_env_all <- rbind(MG_env_all,MG_env)
+}
+
+name <- paste(envs[i],"gene_hits",sep = "_")
+write.table(MG_env_all,name,quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t") 
+
+##############run in cluster#################
+
+```
+
+
+
+```{r}
+
+env_all_gene_hits_b100000 <- read.table("1_env_all_gene_hits_b100000",sep="\t",header=T,fill=TRUE)
+env_all_gene_hits_b100000_multi <- env_all_gene_hits_b100000 %>% filter(group == "multi")
+
+
+multi_hit_gene_nums_b100000 <-  data.frame(table(env_all_gene_hits_b100000_multi$env)) %>% .[order(-.$Freq),] %>% setNames(c("envs","mulhit_genes")) %>% merge(envs,by="envs",all=TRUE) %>% replace(is.na(.),0)
+
+multi_hit_gene_nums_freq_b100000 <- data.frame(table(multi_hit_gene_nums_b100000$mulhit_genes))
+
+###################################################### 1_multi-hit_genes_nums_distribution.pdf  6.2X5.25
+
+ggplot(multi_hit_gene_nums_freq_b100000, aes(x=Var1, y=Freq, fill=Var1)) + geom_bar(stat="identity",position=position_dodge(),width=0.7)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+theme(legend.position="none")+labs(y="Mutation counts")+scale_y_continuous(limits=c(0,100),breaks=seq(0,100,20))
+
+######################################################
+
+multi_envs_b100000 <- data.frame(table(env_all_gene_hits_b100000_multi$gene)) %>% .[order(-.$Freq),] %>% setNames(c("gene","envs"))
+multi_envs_samples_b100000 <- data.frame(aggregate(env_all_gene_hits_b100000_multi$no_of_samples, list(env_all_gene_hits_b100000_multi$gene), FUN=sum))  %>% setNames(c("gene","samples"))
+
+multi_hits_b100000 <- merge(multi_envs_b100000,multi_envs_samples_b100000,by="gene") %>% merge(select(gene_len_rm_overlap,gene,length_rm_overlap,length)) %>% .[order(-.$envs,-.$samples),] 
+multi_hits_b100000 <- multi_hits_b100000 %>% mutate(order=c(1:nrow(multi_hits_b100000)))
+
+#write.table(multi_hits_b100000,"1_multiple_hits_genes",quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t") 
+
+library(reshape2)
+multi_hits_b100000_melt <- melt(multi_hits_b100000,id.var=c("gene","length_rm_overlap","length","order"),variable.names=c("envs","samples"))
+
+######1_plot_all_multi_hits_genes.pdf  10*5
+
+ggplot(multi_hits_b100000_melt, aes(x=order,y=value,group=variable,color=variable))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1)+theme_bw()+xlab("Gene index")+ylab("Count")+scale_x_continuous(limits=c(0,150),breaks=seq(0,150,50))+scale_y_continuous(limits=c(0,700))+scale_y_break(breaks=c(101,280), scales = 0.2) + theme_minimal() +theme(axis.line = element_line(colour = "black"))+scale_color_manual(values =c('#E69F00','#56B4E9'))+theme(legend.position="none")
+
+Env_hits_nums_b100000 <- data.frame(table(env_all_gene_hits_b100000_multi$env)) %>% setNames(c("envs","multi-hits"))
+Env_hits_nums_b100000 <- data.frame(envs = unique(mydata$env_name)) %>% merge(Env_hits_nums_b100000,by="envs",all.x=TRUE)
+
+######1_plot_top11_multi_hits_genes.pdf  10*5
+
+multi_hits_b100000_top10 <- multi_hits_b100000_melt %>% filter(order < 12) %>% filter(variable=="envs")
+multi_hits_b100000_top10$gene <- factor(multi_hits_b100000_top10$gene,levels=multi_hits_b100000_top10$gene)
+ggplot(multi_hits_b100000_top10, aes(x=gene, y=value,fill=variable)) + geom_bar(stat="identity",width=0.6)+xlab("Gene")+ylab("Count")+scale_y_continuous(limits=c(0,100))+scale_fill_manual(values =c('#E69F00'))+theme_bw()+ theme_minimal()
+
+########## TRUE
+multi_envs_b100000_TRUE <- data.frame(table(env_all_gene_hits_b100000_multi$gene)) %>% .[order(-.$Freq),] %>% setNames(c("gene","envs"))
+multi_envs_b100000_TRUE[which(multi_envs_b100000_TRUE$envs > 5 & multi_envs_b100000_TRUE$envs <= 10),2] <- 6   #6-10
+multi_envs_b100000_TRUE[which(multi_envs_b100000_TRUE$envs > 10 & multi_envs_b100000_TRUE$envs <= 20),2] <- 7  #11-20
+multi_envs_b100000_TRUE[which(multi_envs_b100000_TRUE$envs > 20),2] <- 8                                       #>20
+
+MG_hits_TRUE_b100000 <- data.frame(table(multi_envs_b100000_TRUE$envs)) %>% setNames(c("envs","hits")) %>% mutate(group="TRUE")
+
+########## Random
+MG_hits_sim_b100000 <- data.frame(Var1 = c(1:8)) %>% setNames(c("envs"))
+
+for (aa in 1:1000){  
+  env_all_gene_hits_b100000_multi <- env_all_gene_hits_b100000_multi %>% mutate(random_gene = sample(gene_len_rm_overlap$gene,nrow(env_all_gene_hits_b100000_multi),replace = TRUE))
+   
+  multi_envs_b100000_sim <- data.frame(table(env_all_gene_hits_b100000_multi$random_gene)) %>% .[order(-.$Freq),] %>% setNames(c("gene","envs"))
+  MG_hits_sim_temp <- data.frame(table(multi_envs_b100000_sim$envs)) %>% setNames(c("envs","hits"))
+  
+  MG_hits_sim_b100000 <- merge(MG_hits_sim_b100000,MG_hits_sim_temp,by="envs",all.x=TRUE)
+}
+
+MG_hits_sim_b100000[is.na(MG_hits_sim_b100000)] <- 0
+MG_hits_sim_b100000 <- data.frame(envs=MG_hits_sim_b100000$envs, hits=apply(MG_hits_sim_b100000[,2:ncol(MG_hits_sim_b100000)],1,mean)) %>% mutate(group="SIM")
+
+########## TRUE + random
+MG_hits_TRUE_sim_b100000 <- rbind(MG_hits_TRUE_b100000,MG_hits_sim_b100000)
+MG_hits_TRUE_sim_b100000$group <- factor(MG_hits_TRUE_sim_b100000$group,levels=c("TRUE","SIM"))
+
+#1_plot_True_sim.pdf 9*6
+
+ggplot(MG_hits_TRUE_sim_b100000, aes(x = envs, y = hits, fill = group)) + geom_bar(stat = 'identity', position = 'dodge',width=0.8) + theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))+scale_y_continuous(limits=c(0,500))+scale_y_break(breaks=c(50,80), scales = 0.3)
+
+
+MG_hits_sim_expected <- MG_hits_sim_b100000$hits/sum(MG_hits_sim_b100000$hits)
+chisq.test(MG_hits_TRUE_b100000$hits, MG_hits_sim_expected)
+
+
+
+
+
+```
+
+
+
+
+```{r}
+
+########## TRUE
+gene_nums=6615
+multi_envs_b100000_TRUE <- data.frame(table(env_all_gene_hits_b100000_multi$gene)) %>% .[order(-.$Freq),] %>% setNames(c("gene","envs"))
+multi_envs_b100000_TRUE2 <- multi_envs_b100000_TRUE
+events <- sum(multi_envs_b100000_TRUE$envs)
+multi_envs_b100000_TRUE[which(multi_envs_b100000_TRUE$envs > 5 & multi_envs_b100000_TRUE$envs <= 10),2] <- 6   #6-10
+multi_envs_b100000_TRUE[which(multi_envs_b100000_TRUE$envs > 10 & multi_envs_b100000_TRUE$envs <= 20),2] <- 7  #11-20
+multi_envs_b100000_TRUE[which(multi_envs_b100000_TRUE$envs > 20),2] <- 8                                       #>20
+
+MG_hits_TRUE_b100000_1 <- data.frame(0,gene_nums-nrow(multi_envs_b100000_TRUE)) %>% setNames(c("envs","hits")) %>% mutate(group="TRUE")
+MG_hits_TRUE_b100000_2 <- data.frame(table(multi_envs_b100000_TRUE$envs)) %>% setNames(c("envs","hits")) %>% mutate(group="TRUE")
+MG_hits_TRUE_b100000 <- rbind(MG_hits_TRUE_b100000_1,MG_hits_TRUE_b100000_2)
+
+########## Random
+
+rate <- events / gene_nums
+expectation <-  dpois(0:104,lambda=rate)*gene_nums
+expectation_data <- data.frame(num=c(0:104),expectation)
+expectation_data_6 <- sum(expectation_data[which(expectation_data$num > 5 & expectation_data$num <= 10),2])
+expectation_data_7 <- sum(expectation_data[which(expectation_data$num > 10 & expectation_data$num <= 20),2])
+expectation_data_8 <- sum(expectation_data[which(expectation_data$num > 20),2])
+expectation_data
+
+
+MG_hits_sim_b100000 <- data.frame(Var1 = c(0:8)) %>% setNames(c("envs"))
+MG_hits_sim_b100000 <- data.frame(envs=MG_hits_sim_b100000$envs, hits=c(expectation_data$expectation[1:6],expectation_data_6,expectation_data_7,expectation_data_8)) %>% mutate(group="SIM")
+
+
+########## TRUE + random
+MG_hits_TRUE_sim_b100000 <- rbind(MG_hits_TRUE_b100000,MG_hits_sim_b100000)
+MG_hits_TRUE_sim_b100000$group <- factor(MG_hits_TRUE_sim_b100000$group,levels=c("TRUE","SIM"))
+MG_hits_TRUE_sim_b100000$hit2 <- log(MG_hits_TRUE_sim_b100000$hits,10)
+MG_hits_TRUE_sim_b100000$hit3 <- log(MG_hits_TRUE_sim_b100000$hits,2)
+#1_plot_True_sim_1.pdf 9*6
+
+ggplot(MG_hits_TRUE_sim_b100000, aes(x = envs, y = hits, fill = group)) + geom_bar(stat = 'identity', position = 'dodge',width=0.8) + theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))+scale_y_continuous(limits=c(0,6500))+scale_y_break(breaks=c(40,70), scales = 0.3)+scale_y_break(breaks=c(600,6000), scales = 0.3)
+
+
+ggplot(MG_hits_TRUE_sim_b100000, aes(x = envs, y = hits, fill = group)) + geom_bar(stat = 'identity', position = 'dodge',width=0.8) + theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))+scale_y_continuous(limits=c(0,6500))+scale_y_break(breaks=c(40,70), scales = 0.3)+scale_y_break(breaks=c(600,6000), scales = 0.3)
+
+
+library(EnvStats)
+total_change <- c(multi_envs_b100000_TRUE2$envs,rep(0,MG_hits_TRUE_b100000[1,2]))
+
+sigma0 <- sqrt(mean(total_change))
+aa <- varTest(total_change, alternative = "two.sided", conf.level = 0.95, sigma0)
+aa$p.value
+#p=0
+#1_plot_True_sim_1_log.pdf 9*6
+ggplot(MG_hits_TRUE_sim_b100000, aes(x = envs, y = hit2, fill = group)) + geom_bar(stat = 'identity', position = 'dodge',width=0.8) + theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))+scale_y_continuous(limits=c(-40,10))
+
+
+```
+
+```{r}
+###mutation type
+
+for (i in 1:nrow(mydata)){
+    if(mydata[i,8] == "indel"){
+        nt_num <- abs(length(strsplit(mydata$ref[i], "")[[1]]) -  length(strsplit(mydata$alt[i], "")[[1]]))
+		if ((nt_num %% 3) == 0){
+		   mydata[i,8] = "indel_no_frameshift"
+		}else{
+		   mydata[i,8] = "indel_with_frameshift"
+        }
+	}
+}
+
+env_all_gene_hits_b100000_multi <- env_all_gene_hits_b100000_multi  %>% mutate(gene_env= paste(gene,env,sep="/"))
+
+mydata$gene_env <- paste(mydata$gene2,mydata$env_name,sep="/")
+mydata_multi <- mydata %>% filter(gene_env %in% env_all_gene_hits_b100000_multi$gene_env)
+
+mydata_multi_type <- data.frame(table(mydata_multi$type2)) %>% {.[order(-.$Freq),]}
+
+mydata_multi_type$Var1 <- factor(mydata_multi_type$Var1,levels=unique(mydata_multi_type$Var1))
+
+
+############## 1_multi-hit_genes_mutation_type.pdf  6X6
+ggplot(mydata_multi_type, aes(x=Var1, y=Freq, fill=Var1)) + geom_bar(stat="identity",position=position_dodge(),width=0.7)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+theme(legend.position="none")+labs(y="Mutation counts")
+
+#####################################
+MG_type <- data.frame(type=c("N","Non","indel_with_frameshift","indel_no_frameshift","S"))
+
+for (i in multi_hits_b100000$gene){
+  mydata_MG_gene <- mydata_multi %>% filter(gene2==i)
+  MG_type_temp <- data.frame(table(mydata_MG_gene$type2)) %>% setNames(c("type",i))
+  MG_type <- merge(MG_type,MG_type_temp,by="type",all.x=TRUE)
+  MG_type[is.na(MG_type)] <- 0
+}
+
+MG_type <- data.frame(MG_type) %>% 'rownames<-'(.[,1]) %>% .[,-1] 
+MG_type2  <- data.frame(t(MG_type)) %>% mutate(total = apply(.,1,sum)) %>% mutate(null_N = .$indel_with_frameshift + .$Non + .$N) %>% mutate(null = .$indel_with_frameshift + .$Non) %>% add_column(gene = rownames(.), .before = 1) %>% 'rownames<-'(1:nrow(.))
+
+MG_type2$gene[which(MG_type2$gene == "DUR1.2")] <- "DUR1,2"
+
+write.table(MG_type2,"1_MG_mutation_type",quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t") 
+
+```
+
+
