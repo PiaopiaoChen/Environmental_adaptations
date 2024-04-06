@@ -1,0 +1,770 @@
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(xlsx)
+library(scater)
+library(gridExtra)
+library(grid)
+library(lattice)
+setwd("C:/Users/chenp/OneDrive - Umich/Environment250/constant252/crispr/test_fitness/results")
+
+fitness_data <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/fitness/results_4reps/combined_fitness",sep="\t",header=T,fill=TRUE)
+fitness_data$Envs <- gsub("env_", "Env", fitness_data$Env)
+fitness_data <- fitness_data[,c(12,4)]
+fitness_data[234,1] <- "Env224"
+fitness_data[234,2] <- 0.995
+
+########################all
+IRA2 <- read.xlsx(file="1_IRA2.xlsx", sheetIndex = 1) %>% mutate(gene = "IRA2")
+
+IRA2 <- IRA2 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3, rep4), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3, rep4))))) %>% mutate(SE = SD2/sqrt(length))
+
+IRA2 <- merge(IRA2,fitness_data )
+
+IRA2_good <- IRA2 %>% filter(Class=="Good")
+IRA2_good_r <- cor.test(IRA2_good$Mean, IRA2_good$Anc_fitness_mean, alternative  = "less")
+cor.test(IRA2_good$Mean, IRA2_good$Anc_fitness_mean,method = "spearman")
+
+IRA2_good_plot <- ggplot(IRA2_good, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(1,1.4),breaks=seq(1,1.4,0.1))+scale_x_continuous(limits=c(0.78,1),breaks=seq(0.8,1,0.1))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+IRA2_bad <- IRA2 %>% filter(Class=="Bad")
+cor.test(IRA2_bad$Mean, IRA2_bad$Anc_fitness_mean)
+IRA2_bad_plot <- ggplot(IRA2_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(IRA2$Mean, IRA2$Anc_fitness_mean)
+IRA2_all_plot <- ggplot(IRA2, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+
+
+#1_IRA_fitness.pdf  8.5*5
+ggplot(IRA2, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.75,1.4),breaks=seq(0.8,1.4,0.2))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 10.5)+theme(legend.position="none")
+
+t.test(IRA2[1,c(6,7,8)],mu=1)  #6.794e-05
+t.test(IRA2[2,c(6,7,8)],mu=1)  #0.005168
+t.test(IRA2[3,c(6,7,8)],mu=1)  #0.004247
+t.test(IRA2[4,c(6,7,8)],mu=1)  #0.0009141
+t.test(IRA2[5,c(6,7,8)],mu=1)  #0.004388
+t.test(IRA2[6,c(6,7,8)],mu=1)  #0.002399
+t.test(IRA2[7,c(6,7,8)],mu=1)  #0.01315
+t.test(IRA2[8,c(6,7,8)],mu=1)  #0.001973
+t.test(IRA2[9,c(6,7,8)],mu=1)  #0.001425
+t.test(IRA2[10,c(6,7,8)],mu=1)  #0.01272
+
+
+t.test(IRA2[11,c(6,7,8)],mu=1)  #0.2332
+t.test(IRA2[12,c(6,7,8)],mu=1)  #0.1328
+t.test(IRA2[13,c(6,7,8)],mu=1)  #0.001941
+t.test(IRA2[14,c(6,7,8,9)],mu=1)  #0.001866
+t.test(IRA2[15,c(6,7,8)],mu=1)  #0.02778
+t.test(IRA2[16,c(6,7,8)],mu=1)  #0.002339
+t.test(IRA2[17,c(6,7,8)],mu=1)  #0.003159
+t.test(IRA2[18,c(6,7,8)],mu=1)  #0.009387
+t.test(IRA2[19,c(6,7,8)],mu=1)  #0.000801
+t.test(IRA2[20,c(6,7,8)],mu=1)  #0.001596
+
+t.test(IRA2$Mean[1:10],mu=1)  #0.01266
+t.test(IRA2$Mean[11:20],mu=1)  #0.005258
+t.test(IRA2$Mean[1:10],IRA2$Mean[11:20])  #0.0003404
+
+IRA2_nums_s <- c(10,0,0,0,2,8)
+IRA2_nums <- c(10,0,1,9)
+
+IRA2_nums_s_matrix <- matrix(IRA2_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(IRA2_nums_s_matrix)
+fisher.test(IRA2_nums_s_matrix,alternative = "greater")
+#p-value = 1.083e-05
+
+
+IRA2_nums_matrix <- matrix(IRA2_nums,nrow = 2, byrow = TRUE)
+#chisq.test(IRA2_nums_matrix)
+fisher.test(IRA2_nums_matrix,alternative = "greater")
+
+#p-value = 5.954e-05
+
+
+```
+
+
+```{r}
+
+PDR1 <- read.xlsx(file="2_PDR1.xlsx", sheetIndex = 1) %>% mutate(gene = "PDR1")
+PDR1 <- PDR1 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3, rep4), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3, rep4))))) %>% mutate(SE = SD2/sqrt(length))
+
+
+PDR1 <- merge(PDR1,fitness_data )
+
+PDR1_good <- PDR1 %>% filter(Class=="Good")
+PDR1_good_r <- cor.test(PDR1_good$Mean, PDR1_good$Anc_fitness_mean, alternative  = "less")
+cor.test(PDR1_good$Mean, PDR1_good$Anc_fitness_mean,method = "spearman")
+
+PDR1_good_plot <- ggplot(PDR1_good, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(0.98,1.41),breaks=seq(1,1.4,0.1))+scale_x_continuous(limits=c(0.7,0.911),breaks=seq(0.7,0.9,0.1))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+PDR1_beneficial <- PDR1 %>% filter(Class=="Good"| Order == 11)
+cor.test(PDR1_beneficial$Mean, PDR1_beneficial$Anc_fitness_mean, alternative  = "less")
+
+
+PDR1_bad <- PDR1 %>% filter(Class=="Bad")%>% filter(!(Order==11))
+cor.test(PDR1_bad$Mean, PDR1_bad$Anc_fitness_mean)
+PDR1_bad_plot <- ggplot(PDR1_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(PDR1$Mean, PDR1$Anc_fitness_mean)
+PDR1_all_plot <- ggplot(PDR1, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+
+#2_PDR1_fitness.pdf  8.5*5
+ggplot(PDR1, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.8,1.42),breaks=seq(0.8,1.4,0.2))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 10.5)+theme(legend.position="none")
+
+
+t.test(PDR1[1,c(6,7,8)],mu=1)  #0.001805
+t.test(PDR1[2,c(6,7,8)],mu=1)  #0.000211
+t.test(PDR1[3,c(6,7,8)],mu=1)  #0.001767
+t.test(PDR1[4,c(6,7,8)],mu=1)  #0.002648
+t.test(PDR1[5,c(6,7,8,9)],mu=1)  #0.002131
+t.test(PDR1[6,c(6,7,8)],mu=1)  #0.0007871
+t.test(PDR1[7,c(6,7,8)],mu=1)  #0.001599
+t.test(PDR1[8,c(6,7,8)],mu=1)  #0.02317
+t.test(PDR1[9,c(6,7,8)],mu=1)  #0.06401
+t.test(PDR1[10,c(6,7,8)],mu=1)  #0.1141
+
+
+t.test(PDR1[11,c(6,7,8,9)],mu=1)  #8.265e-05
+t.test(PDR1[12,c(6,7,8,9)],mu=1)  #0.6364
+t.test(PDR1[13,c(6,7,8,9)],mu=1)  #0.9791
+t.test(PDR1[14,c(6,7,8)],mu=1)  #0.1147
+t.test(PDR1[15,c(6,7,8)],mu=1)  #0.005089
+t.test(PDR1[16,c(6,7,8,9)],mu=1)  #0.002024
+t.test(PDR1[17,c(6,7,8)],mu=1)  #0.03764
+t.test(PDR1[18,c(6,7,8)],mu=1)  #0.01195
+t.test(PDR1[19,c(6,7,8)],mu=1)  #0.003679
+t.test(PDR1[20,c(6,7,8)],mu=1)  #0.001581
+
+t.test(PDR1$Mean[1:10],mu=1)  #0.002128
+t.test(PDR1$Mean[11:20],mu=1)  #0.2352
+t.test(PDR1$Mean[1:10],PDR1$Mean[11:20])  #0.0006535
+
+PDR1_nums_s <- c(8,2,0, 1,3,6)
+PDR1_nums <- c(9,1,3,7)
+
+PDR1_nums_s_matrix <- matrix(PDR1_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(PDR1_nums_s_matrix)
+fisher.test(PDR1_nums_s_matrix,alternative = "greater")
+#0.001093
+
+PDR1_nums_matrix <- matrix(PDR1_nums,nrow = 2, byrow = TRUE)
+chisq.test(PDR1_nums_matrix)
+fisher.test(PDR1_nums_matrix,alternative = "greater")
+#p-value =  0.009883
+
+
+
+```
+
+
+
+```{r}
+
+GNP1 <- read.xlsx(file="3_GNP1.xlsx", sheetIndex = 1) %>% mutate(gene = "GNP1")
+GNP1 <- GNP1 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3))))) %>% mutate(SE = SD2/sqrt(length))
+
+GNP1 <- merge(GNP1,fitness_data )
+
+GNP1_good <- GNP1 %>% filter(Class=="Good")
+GNP1_good_r <- cor.test(GNP1_good$Mean, GNP1_good$Anc_fitness_mean, alternative  = "less")
+
+cor.test(GNP1_good$Mean, GNP1_good$Anc_fitness_mean,method = "spearman")
+
+GNP1_good_plot <- ggplot(GNP1_good, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(1,1.17),breaks=seq(1,1.15,0.05))+scale_x_continuous(limits=c(0.778,1),breaks=seq(0.8,1,0.1))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+
+GNP1_beneficial <- GNP1 %>% filter(Class=="Good"| Order == 11)
+cor.test(GNP1_beneficial$Mean, GNP1_beneficial$Anc_fitness_mean, alternative  = "less")
+
+
+
+GNP1_bad <- GNP1 %>% filter(Class=="Bad")%>% filter(!(Order==11))
+cor.test(GNP1_bad$Mean, GNP1_bad$Anc_fitness_mean)
+GNP1_bad_plot <- ggplot(GNP1_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(GNP1$Mean, GNP1$Anc_fitness_mean)
+GNP1_all_plot <- ggplot(GNP1, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+#3_GNP1_fitness.pdf  8.5*5
+ggplot(GNP1, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.95,1.2),breaks=seq(0.95,1.2,0.05))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 10.5)+theme(legend.position="none")
+
+
+t.test(GNP1[1,c(6,7,8)],mu=1)  #0.002822
+t.test(GNP1[2,c(6,7,8)],mu=1)  #0.002044
+t.test(GNP1[3,c(6,7,8)],mu=1)  #0.001286
+t.test(GNP1[4,c(6,7,8)],mu=1)  #0.02148
+t.test(GNP1[5,c(6,7,8)],mu=1)  #0.000229
+t.test(GNP1[6,c(6,7,8)],mu=1)  #0.003781
+t.test(GNP1[7,c(6,7,8)],mu=1)  #0.004992
+t.test(GNP1[8,c(6,7,8)],mu=1)  #0.008173
+t.test(GNP1[9,c(6,7,8)],mu=1)  #0.009898
+t.test(GNP1[10,c(6,7,8)],mu=1)  #0.06611
+
+
+t.test(GNP1[11,c(6,7,8)],mu=1)  #0.008455
+t.test(GNP1[12,c(6,7,8)],mu=1)  #0.09298
+t.test(GNP1[13,c(6,7,8)],mu=1)  #0.1696
+t.test(GNP1[14,c(6,7,8)],mu=1)  #0.7856
+t.test(GNP1[15,c(6,7,8)],mu=1)  #0.4246
+t.test(GNP1[16,c(6,7,8)],mu=1)  #0.3261
+t.test(GNP1[17,c(6,7,8)],mu=1)  #0.3698
+t.test(GNP1[18,c(6,7,8)],mu=1)  #0.1325
+t.test(GNP1[19,c(6,7,8)],mu=1)  #0.0799
+t.test(GNP1[20,c(6,7,8)],mu=1)  #0.04884
+
+
+t.test(GNP1$Mean[1:10],mu=1)  #8.265e-05
+t.test(GNP1$Mean[11:20],mu=1)  #0.8701
+t.test(GNP1$Mean[1:10],GNP1$Mean[11:20])  #3.231e-05
+
+GNP1_nums_s <- c(9,1,0,1,8,1)
+GNP1_nums <- c(10,0,3,7)
+
+
+GNP1_nums_s_matrix <- matrix(GNP1_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(GNP1_nums_s_matrix)
+fisher.test(GNP1_nums_s_matrix,alternative = "greater")
+#p-value = 0.001093
+
+GNP1_nums_matrix <- matrix(GNP1_nums,nrow = 2, byrow = TRUE)
+chisq.test(GNP1_nums_matrix)
+fisher.test(GNP1_nums_matrix,alternative = "greater")
+#p-value = 0.001548
+
+
+```
+
+
+
+```{r}
+
+PDR3 <- read.xlsx(file="4_PDR3.xlsx", sheetIndex = 1) %>% mutate(gene = "PDR3")
+PDR3 <- PDR3 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3))))) %>% mutate(SE = SD2/sqrt(length))
+
+PDR3 <- merge(PDR3,fitness_data )
+
+PDR3_good <- PDR3 %>% filter(Class=="Good") %>% filter(!(Order==10))
+PDR3_good_r <- cor.test(PDR3_good$Mean, PDR3_good$Anc_fitness_mean, alternative  = "less")
+
+cor.test(PDR3_good$Mean, PDR3_good$Anc_fitness_mean,method = "spearman")
+
+PDR3_good_plot <- ggplot(PDR3_good, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(1,1.65),breaks=seq(1,1.6,0.2))+scale_x_continuous(limits=c(0.7,1),breaks=seq(0.7,1,0.1))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+
+PDR3_beneficial <- PDR3 %>% filter(Class=="Good"| Order == 11) %>% filter(!(Order==10))
+cor.test(PDR3_beneficial$Mean, PDR3_beneficial$Anc_fitness_mean, alternative  = "less")
+
+
+
+PDR3_bad <- PDR3 %>% filter(Class=="Bad") %>% filter(!(Order==11))
+cor.test(PDR3_bad$Mean, PDR3_bad$Anc_fitness_mean)
+PDR3_bad_plot <- ggplot(PDR3_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(PDR3$Mean, PDR3$Anc_fitness_mean)
+PDR3_all_plot <- ggplot(PDR3, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+#4_PDR3_fitness.pdf  8.5*5
+ggplot(PDR3, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.75,1.75),breaks=seq(0.75,1.75,0.25))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 10.5)+theme(legend.position="none")
+
+
+
+t.test(PDR3[1,c(6,7,8)],mu=1)  #0.0006739
+t.test(PDR3[2,c(6,7,8)],mu=1)  #0.001582
+t.test(PDR3[3,c(6,7,8)],mu=1)  #5.044e-05
+t.test(PDR3[4,c(6,7,8)],mu=1)  #0.0004757
+t.test(PDR3[5,c(6,7,8)],mu=1)  #0.001792
+t.test(PDR3[6,c(6,7,8)],mu=1)  #0.00454
+t.test(PDR3[7,c(6,7,8)],mu=1)  #0.01525
+t.test(PDR3[8,c(6,7,8)],mu=1)  #0.006695
+t.test(PDR3[9,c(6,7,8)],mu=1)  #0.01782
+t.test(PDR3[10,c(6,7,8)],mu=1)  #0.0002914
+
+
+t.test(PDR3[11,c(6,7,8)],mu=1)  #0.005443
+t.test(PDR3[12,c(6,7,8)],mu=1)  #0.5762
+t.test(PDR3[13,c(6,7,8)],mu=1)  #0.9918
+t.test(PDR3[14,c(6,7,8)],mu=1)  #0.6267
+t.test(PDR3[15,c(6,7,8)],mu=1)  #0.05548
+t.test(PDR3[16,c(6,7,8)],mu=1)  #0.009126
+t.test(PDR3[17,c(6,7,8)],mu=1)  #0.03996
+t.test(PDR3[18,c(6,7,8)],mu=1)  #0.003395
+t.test(PDR3[19,c(6,7,8)],mu=1)  #0.004047
+t.test(PDR3[20,c(6,7,8)],mu=1)  #0.001147
+
+
+t.test(PDR3$Mean[1:10],mu=1)  #0.0208
+t.test(PDR3$Mean[11:20],mu=1)  #0.3027
+t.test(PDR3$Mean[1:10],PDR3$Mean[11:20])  #0.01294
+
+PDR3_nums_s <- c(9,0,1,1,3,6)
+PDR3_nums <- c(9,1,3,7)
+
+
+PDR3_nums_s_matrix <- matrix(PDR3_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(PDR3_nums_s_matrix)
+fisher.test(PDR3_nums_s_matrix,alternative = "greater")
+#0.001093
+
+PDR3_nums_matrix <- matrix(PDR3_nums,nrow = 2, byrow = TRUE)
+chisq.test(PDR3_nums_matrix)
+fisher.test(PDR3_nums_matrix,alternative = "greater")
+#p-value = 0.009883
+
+
+
+```
+
+
+```{r}
+
+PDR5 <- read.xlsx(file="5_PDR5.xlsx", sheetIndex = 1) %>% mutate(gene = "PDR5")
+PDR5 <- PDR5 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3, rep4), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3, rep4))))) %>% mutate(SE = SD2/sqrt(length))
+
+PDR5 <- merge(PDR5,fitness_data )
+
+PDR5_good <- PDR5 %>% filter(Class=="Good")%>% filter(!(Order==10))
+
+PDR5_good_r <- cor.test(PDR5_good$Mean, PDR5_good$Anc_fitness_mean, alternative  = "less")
+cor.test(PDR5_good$Mean, PDR5_good$Anc_fitness_mean,method = "spearman")
+
+PDR5_good_plot <- ggplot(PDR5_good, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(1,1.15),breaks=seq(1,1.15,0.05))+scale_x_continuous(limits=c(0.8,1),breaks=seq(0.8,1,0.1))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+
+PDR5_beneficial <- PDR5 %>% filter(Class=="Good"| Order == 11)%>% filter(!(Order==10))
+cor.test(PDR5_beneficial$Mean, PDR5_beneficial$Anc_fitness_mean, alternative  = "less")
+
+
+PDR5_bad <- PDR5 %>% filter(Class=="Bad")%>% filter(!(Order==11))
+cor.test(PDR5_bad$Mean, PDR5_bad$Anc_fitness_mean)
+PDR5_bad_plot <- ggplot(PDR5_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(PDR5$Mean, PDR5$Anc_fitness_mean)
+PDR5_all_plot <- ggplot(PDR5, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+#5_PDR5_fitness.pdf  8.5*5
+ggplot(PDR5, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.9,1.16),breaks=seq(0.9,1.15,0.05))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 10.5)+theme(legend.position="none")
+
+
+
+t.test(PDR5[1,c(6,7,8,9)],mu=1)  #0.01116
+t.test(PDR5[2,c(6,7,8)],mu=1)  #0.007933
+t.test(PDR5[3,c(6,7,8)],mu=1)  #0.006142
+t.test(PDR5[4,c(6,7,8)],mu=1)  #0.01416
+t.test(PDR5[5,c(6,7,8)],mu=1)  #0.01332
+t.test(PDR5[6,c(6,7,8)],mu=1)  #0.01628
+t.test(PDR5[7,c(6,7,8)],mu=1)  #0.06464
+t.test(PDR5[8,c(6,7,8)],mu=1)  #0.07171
+t.test(PDR5[9,c(6,7,8)],mu=1)  #0.121
+t.test(PDR5[10,c(6,7,8)],mu=1)  # 0.02345
+
+
+t.test(PDR5[11,c(6,7,8,9)],mu=1)  #0.002244
+t.test(PDR5[12,c(6,7,8,9)],mu=1)  #0.4744
+t.test(PDR5[13,c(6,7,8)],mu=1)  #0.3519
+t.test(PDR5[14,c(6,7,8,9)],mu=1)  #0.1945
+t.test(PDR5[15,c(6,7,8)],mu=1)  #0.1506
+t.test(PDR5[16,c(6,7,8)],mu=1)  #0.04071
+t.test(PDR5[17,c(6,7,8)],mu=1)  #0.01294
+t.test(PDR5[18,c(6,7,8)],mu=1)  #0.01355
+t.test(PDR5[19,c(6,7,8)],mu=1)  #0.0334
+t.test(PDR5[20,c(6,7,8)],mu=1)  #0.009308
+
+t.test(PDR5$Mean[1:10],mu=1)  #0.03412
+t.test(PDR5$Mean[11:20],mu=1)  #0.03565
+t.test(PDR5$Mean[1:10],PDR5$Mean[11:20])  #0.007622
+
+PDR5_nums_s <- c(6,3,1,1,4,5)
+PDR5_nums <- c(9,1,2,8)
+
+
+PDR5_nums_s_matrix <- matrix(PDR5_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(PDR5_nums_s_matrix)
+fisher.test(PDR5_nums_s_matrix,alternative = "greater")
+#p-value = 0.05849
+
+
+PDR5_nums_matrix <- matrix(PDR5_nums,nrow = 2, byrow = TRUE)
+chisq.test(PDR5_nums_matrix)
+fisher.test(PDR5_nums_matrix,alternative = "greater")
+#p-value =  0.002739
+
+
+
+
+```
+
+
+```{r}
+
+RAS2 <- read.xlsx(file="8_RAS2.xlsx", sheetIndex = 1) %>% mutate(gene = "RAS2")
+RAS2 <- RAS2 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3, rep4), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3, rep4))))) %>% mutate(SE = SD2/sqrt(length))
+
+RAS2 <- merge(RAS2,fitness_data )
+
+RAS2_good <- RAS2 %>% filter(Class=="Good")%>% filter(!(Order==10))%>% filter(!(Order==9))
+RAS2_good_r <- cor.test(RAS2_good$Mean, RAS2_good$Anc_fitness_mean, alternative  = "less")
+cor.test(RAS2_good$Mean, RAS2_good$Anc_fitness_mean,method = "spearman")
+
+RAS2_good_plot <- ggplot(RAS2_good, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(1,1.23),breaks=seq(1,1.23,0.1))+scale_x_continuous(limits=c(0.7,1),breaks=seq(0.7,1,0.1))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+
+
+RAS2_beneficial <- RAS2 %>% filter(Class=="Good"| Order == 11| Order == 12)%>% filter(!(Order==10))%>% filter(!(Order==9))
+cor.test(RAS2_beneficial$Mean, RAS2_beneficial$Anc_fitness_mean, alternative  = "less")
+
+
+
+RAS2_bad <- RAS2 %>% filter(Class=="Bad")%>% filter(!(Order==11))%>% filter(!(Order==12))
+cor.test(RAS2_bad$Mean, RAS2_bad$Anc_fitness_mean)
+RAS2_bad_plot <-ggplot(RAS2_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(RAS2$Mean, RAS2$Anc_fitness_mean)
+RAS2_all_plot <- ggplot(RAS2, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+#8_RAS2_fitness.pdf  8.5*5
+ggplot(RAS2, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.79,1.23),breaks=seq(0.8,1.2,0.1))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 10.5)+theme(legend.position="none")
+
+
+
+t.test(RAS2[1,c(6,7,8,9)],mu=1)  #4.326e-05
+t.test(RAS2[2,c(6,7,8)],mu=1)  #0.005239
+t.test(RAS2[3,c(6,7,8,9)],mu=1)  #6.144e-06
+t.test(RAS2[4,c(6,7,8)],mu=1)  #0.009766
+t.test(RAS2[5,c(6,7,8)],mu=1)  #0.009806
+t.test(RAS2[6,c(6,7,8)],mu=1)  #0.04445
+t.test(RAS2[7,c(6,7,8)],mu=1)  #0.1047
+t.test(RAS2[8,c(6,7,8)],mu=1)  #0.02145
+t.test(RAS2[9,c(6,7,8)],mu=1)  #0.002996
+t.test(RAS2[10,c(6,7,8,9)],mu=1)  #0.0001356
+
+
+t.test(RAS2[11,c(6,7,8,9)],mu=1)  #0.009602
+t.test(RAS2[12,c(6,7,8,9)],mu=1)  #0.05227
+t.test(RAS2[13,c(6,7,8)],mu=1)  #0.07169
+t.test(RAS2[14,c(6,7,8)],mu=1)  #0.009987
+t.test(RAS2[15,c(6,7,8)],mu=1)  #0.02101
+t.test(RAS2[16,c(6,7,8)],mu=1)  #0.0124
+t.test(RAS2[17,c(6,7,8)],mu=1)  #0.008831
+t.test(RAS2[18,c(6,7,8)],mu=1)  # 0.007835
+t.test(RAS2[19,c(6,7,8,9)],mu=1)  # 0.0004492
+t.test(RAS2[20,c(6,7,8)],mu=1)  #0.0008601
+
+t.test(RAS2$Mean[1:10],mu=1)  #0.2649
+t.test(RAS2$Mean[11:20],mu=1)  #0.01034
+t.test(RAS2$Mean[1:10],RAS2$Mean[11:20])  #0.01333
+
+RAS2_nums_s <- c(7,1,2,2,1,7)
+RAS2_nums <- c(8,2,2,8)
+
+
+
+RAS2_nums_s_matrix <- matrix(RAS2_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(RAS2_nums_s_matrix)
+fisher.test(RAS2_nums_s_matrix)
+#p-value = 0.03704
+
+RAS2_nums_matrix <- matrix(RAS2_nums,nrow = 2, byrow = TRUE)
+chisq.test(RAS2_nums_matrix)
+fisher.test(RAS2_nums_matrix,alternative = "greater")
+#p-value =  0.01151
+
+```
+
+
+```{r}
+
+WHI2 <- read.xlsx(file="10_WHI2.xlsx", sheetIndex = 1) %>% mutate(gene = "WHI2")
+WHI2 <- WHI2 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3, rep4), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3, rep4))))) %>% mutate(SE = SD2/sqrt(length))
+
+WHI2 <- merge(WHI2,fitness_data )
+
+WHI2_good <- WHI2 %>% filter(Class=="Good")%>% filter(!(Order==8))
+WHI2_good_r <- cor.test(WHI2_good$Mean, WHI2_good$Anc_fitness_mean,method = "spearman")
+cor.test(WHI2_good$Mean, WHI2_good$Anc_fitness_mean, alternative  = "less")
+
+WHI2_good_plot <- ggplot(WHI2_good,aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(0.98,1.11),breaks=seq(1,1.2,0.05))+scale_x_continuous(limits=c(0.84,1),breaks=seq(0.85,1,0.05))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+
+WHI2_beneficial <- WHI2 %>% filter(Class=="Good"| Order == 9| Order == 10)%>% filter(!(Order==8))
+cor.test(WHI2_beneficial$Mean, WHI2_beneficial$Anc_fitness_mean, alternative  = "less")
+
+WHI2_bad <- WHI2 %>% filter(Class=="Bad")%>% filter(!(Order==11))%>% filter(!(Order==12))
+cor.test(WHI2_bad$Mean, WHI2_bad$Anc_fitness_mean)
+WHI2_bad_plot <-ggplot(WHI2_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(WHI2$Mean, WHI2$Anc_fitness_mean)
+WHI2_all_plot <- ggplot(WHI2, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+#10_WHI2_fitness.pdf  8.5*5
+ggplot(WHI2, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.9,1.11),breaks=seq(0.9,1.1,0.05))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 8.5)+theme(legend.position="none")
+
+
+t.test(WHI2[1,c(6,7,8)],mu=1)  #0.001316
+t.test(WHI2[2,c(6,7,8)],mu=1)  #0.007166
+t.test(WHI2[3,c(6,7,8)],mu=1)  #0.01625
+t.test(WHI2[4,c(6,7,8)],mu=1)  #0.0417
+t.test(WHI2[5,c(6,7,8)],mu=1)  #0.01816
+t.test(WHI2[6,c(6,7,8)],mu=1)  #0.4438
+t.test(WHI2[7,c(6,7,8)],mu=1)  #0.232
+t.test(WHI2[8,c(6,7,8)],mu=1)  #0.002112
+
+t.test(WHI2[9,c(6,7,8)],mu=1)  #0.006393
+t.test(WHI2[10,c(6,7,8,9)],mu=1)  #0.04606
+t.test(WHI2[11,c(6,7,8)],mu=1)  #0.5142
+t.test(WHI2[12,c(6,7,8,9)],mu=1)  #0.03981
+t.test(WHI2[13,c(6,7,8,9)],mu=1)  #0.01992
+t.test(WHI2[14,c(6,7,8)],mu=1)  #0.04803
+t.test(WHI2[15,c(6,7,8)],mu=1)  #0.065
+t.test(WHI2[16,c(6,7,8)],mu=1)  #0.03666
+t.test(WHI2[17,c(6,7,8)],mu=1)  #0.01233
+t.test(WHI2[18,c(6,7,8)],mu=1)  #0.006888
+
+t.test(WHI2$Mean[1:8],mu=1)  #0.2555
+t.test(WHI2$Mean[9:18],mu=1)  #0.05533
+t.test(WHI2$Mean[1:8],WHI2$Mean[9:18])  #0.042
+
+WHI2_nums_s <- c(5,2,1,2,1,7)
+WHI2_nums <- c(6,2,2,8)
+
+
+WHI2_nums_s_matrix <- matrix(WHI2_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(WHI2_nums_s_matrix)
+fisher.test(WHI2_nums_s_matrix)
+#p-value = 0.04369
+
+WHI2_nums_matrix <- matrix(WHI2_nums,nrow = 2, byrow = TRUE)
+chisq.test(WHI2_nums_matrix)
+fisher.test(WHI2_nums_matrix,alternative = "greater")
+#p-value = 0.03065
+
+
+```
+
+
+```{r}
+
+YRR1 <- read.xlsx(file="11_YRR1.xlsx", sheetIndex = 1) %>% mutate(gene = "YRR1")
+YRR1 <- YRR1 %>% rowwise() %>% mutate(SD2 = sd(c(rep1, rep2, rep3, rep4), na.rm = TRUE)) %>% mutate(length = sum(!(is.na(c(rep1, rep2, rep3, rep4))))) %>% mutate(SE = SD2/sqrt(length))
+
+YRR1 <- merge(YRR1,fitness_data )
+
+YRR1_good <- YRR1 %>% filter(Class=="Good")%>% filter(!(Order==8))%>% filter(!(Order==7))%>% filter(!(Order==6))
+YRR1_good_r <- cor.test(YRR1_good$Mean, YRR1_good$Anc_fitness_mean, alternative  = "less")
+cor.test(YRR1_good$Mean, YRR1_good$Anc_fitness_mean,method = "spearman")
+
+YRR1_good_plot <- ggplot(YRR1_good, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=1.5,alpha=0.5)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+scale_y_continuous(limits=c(1,1.12),breaks=seq(1,1.12,0.04))+scale_x_continuous(limits=c(0.8,1),breaks=seq(0.8,1,0.1))+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+YRR1_bad <- YRR1 %>% filter(Class=="Bad")
+cor.test(YRR1_bad$Mean, YRR1_bad$Anc_fitness_mean)
+YRR1_bad_plot <-ggplot(YRR1_bad, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+cor.test(YRR1$Mean, YRR1$Anc_fitness_mean)
+YRR1_all_plot <- ggplot(YRR1, aes(x=Anc_fitness_mean,y=Mean))+geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),position=position_dodge())+theme_bw()+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+geom_smooth(method=lm, se=F)
+
+#11_YRR1_fitness.pdf  8.5*5
+ggplot(YRR1, aes(x=Order,y=Mean,color=Class))+ geom_point(size=2)+geom_errorbar(aes(ymin=Mean-SE,ymax=Mean+SE),width=.5,position=position_dodge(),size=0.5)+scale_y_continuous(limits=c(0.9,1.15),breaks=seq(0.9,1.15,0.05))+scale_x_continuous(breaks=seq(1,20,1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_colour_manual(values=c('#1E90FF','#FF0000'))+ geom_hline(yintercept=1)+ geom_vline(xintercept = 8.5)+theme(legend.position="none")
+
+
+t.test(YRR1[1,c(6,7,8,9)],mu=1)  #0.0006107
+t.test(YRR1[2,c(6,7,8)],mu=1)  #0.00853
+t.test(YRR1[3,c(6,7,8,9)],mu=1)  #0.0009485
+t.test(YRR1[4,c(6,7,8,9)],mu=1)  #0.07051
+t.test(YRR1[5,c(6,7,8)],mu=1)  #0.00463
+t.test(YRR1[6,c(6,7,8,9)],mu=1)  #7.689e-05
+t.test(YRR1[7,c(6,7,8)],mu=1)  #0.04433
+t.test(YRR1[8,c(6,7,8)],mu=1)  #0.01988
+
+t.test(YRR1[9,c(6,7,8)],mu=1)  #0.7397
+t.test(YRR1[10,c(6,7,8)],mu=1)  #0.8241
+t.test(YRR1[11,c(6,7,8)],mu=1)  #0.5369
+t.test(YRR1[12,c(6,7,8)],mu=1)  #0.4395
+t.test(YRR1[13,c(6,7,8)],mu=1)  #0.473
+t.test(YRR1[14,c(6,7,8)],mu=1)  #0.06931
+t.test(YRR1[15,c(6,7,8,9)],mu=1)  #0.004741
+t.test(YRR1[16,c(6,7,8)],mu=1)  #0.006412
+t.test(YRR1[17,c(6,7,8)],mu=1)  #0.03771
+t.test(YRR1[18,c(6,7,8)],mu=1)  #0.00358
+
+t.test(YRR1$Mean[1:8],mu=1)  #0.2595
+t.test(YRR1$Mean[9:18],mu=1)  #0.02807
+t.test(YRR1$Mean[1:8],YRR1$Mean[9:18])  #0.06657
+
+YRR1_nums_s <- c(5,0,3,0,6,4)
+YRR1_nums <- c(5,3,2,8)
+
+
+YRR1_nums_s_matrix <- matrix(YRR1_nums_s,nrow = 2, byrow = TRUE)
+chisq.test(YRR1_nums_s_matrix)
+fisher.test(YRR1_nums_s_matrix)
+#p-value = 0.003017
+
+YRR1_nums_matrix <- matrix(YRR1_nums,nrow = 2, byrow = TRUE)
+chisq.test(YRR1_nums_matrix)
+fisher.test(YRR1_nums_matrix,alternative = "greater")
+#p-value =0.08824
+
+
+
+```
+
+
+```{r}
+
+##correlated_with_FiFSC_beneficial  6.7*4.8
+grid.arrange(IRA2_good_plot,PDR1_good_plot,GNP1_good_plot,PDR3_good_plot,PDR5_good_plot,RAS2_good_plot,WHI2_good_plot,YRR1_good_plot)
+##correlated_with_FiFSC_deleterious
+grid.arrange(IRA2_bad_plot,PDR1_bad_plot,GNP1_bad_plot,PDR3_bad_plot,PDR5_bad_plot,RAS2_bad_plot,WHI2_bad_plot,YRR1_bad_plot)
+
+##correlated_with_FiFSC_all
+grid.arrange(IRA2_all_plot,PDR1_all_plot,GNP1_all_plot,PDR3_all_plot,PDR5_all_plot,RAS2_all_plot,WHI2_all_plot,YRR1_all_plot)
+
+combined_data <- rbind(IRA2,GNP1,PDR1,PDR3,PDR5,RAS2,WHI2,YRR1)
+combined_data$gene <- factor(combined_data$gene,levels=c("IRA2","GNP1","PDR1","PDR3","PDR5","RAS2","WHI2","YRR1"))
+combined_data$Class <- factor(combined_data$Class,levels=c("Good","Bad"))
+
+#combined_8genes.pdf 9.6X4.5
+ggplot(combined_data,aes(x=gene,y=Mean,fill=Class))+geom_boxplot(width=0.5) +labs(y="Relative fitness")+ theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_fill_manual(values=c('#FF0000','#1E90FF'))+scale_y_continuous(limits=c(0.8,1.7),breaks=seq(0.8,1.7,0.2))
+
+
+#####plot R
+gene_name <- c("IRA2","PDR1","GNP1","PDR3","PDR5","RAS2","WHI2","YRR1")
+gene_cor <- c(IRA2_good_r$estimate,PDR1_good_r$estimate,GNP1_good_r$estimate,PDR3_good_r$estimate,PDR5_good_r$estimate,RAS2_good_r$estimate,WHI2_good_r$estimate,YRR1_good_r$estimate)
+combined_cor <- data.frame(gene_name,gene_cor)
+combined_cor$gene_name <- factor(combined_cor$gene_name,levels=c("IRA2","PDR1","GNP1","PDR3","PDR5","RAS2","WHI2","YRR1"))
+#combined_8genes_cor.pdf 9.6X4.5
+ggplot(combined_cor,aes(x=gene_name,y=gene_cor))+geom_bar(stat="identity",width=0.5)+labs(y="correlation coefficient")+ theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_y_continuous(limits=c(-1,0),breaks=seq(-1,0,0.2))
+
+```
+
+
+
+```{r}
+
+combined_nums <- c(IRA2_nums,PDR1_nums,GNP1_nums,PDR3_nums,PDR5_nums,RAS2_nums,WHI2_nums,YRR1_nums)
+combined_genes <- c("IRA2_group1","IRA2_group1","IRA2_group2","IRA2_group2",
+                    "PDR1_group1","PDR1_group1","PDR1_group2","PDR1_group2",
+                    "GNP1_group1","GNP1_group1","GNP1_group2","GNP1_group2",
+                    "PDR3_group1","PDR3_group1","PDR3_group2","PDR3_group2",
+                    "PDR5_group1","PDR5_group1","PDR5_group2","PDR5_group2",
+                    "RAS2_group1","RAS2_group1","RAS2_group2","RAS2_group2",
+                    "WHI2_group1","WHI2_group1","WHI2_group2","WHI2_group2",
+                    "YRR1_group1","YRR1_group1","YRR1_group2","YRR1_group2"
+                    )
+combined_effects <- c("b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d","b","d")
+
+
+combined_all <- data.frame(combined_nums,combined_genes,combined_effects)
+combined_all$combined_genes <- factor(combined_all$combined_genes,levels=c("IRA2_group1","IRA2_group2","PDR1_group1","PDR1_group2","GNP1_group1","GNP1_group2","PDR3_group1","PDR3_group2","PDR5_group1","PDR5_group2","RAS2_group1","RAS2_group2","WHI2_group1","WHI2_group2","YRR1_group1","YRR1_group2"))
+
+combined_all$combined_effects <- factor(combined_all$combined_effects,levels=c("d","b"))
+
+#########combine_larger_smaller_1  11 * 4
+ggplot(combined_all,aes(combined_genes,combined_nums, fill=combined_effects))+geom_bar(stat="identity",width=0.6) +labs(x="groups", y="Number of environments") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_y_continuous(limits=c(0,10),breaks=seq(0,10,2))
+
+
+
+
+##combined
+combined_group1_b <- combined_nums[c(1,5,9,13,17,21,25,29)]
+combined_group1_d <- combined_nums[c(1+1,5+1,9+1,13+1,17+1,21+1,25+1,29+1)]
+
+combined_group2_b <- combined_nums[c(1+2,5+2,9+2,13+2,17+2,21+2,25+2,29+2)]
+combined_group2_d <- combined_nums[c(1+3,5+3,9+3,13+3,17+3,21+3,25+3,29+3)]
+
+combined_c_nums <- c(sum(combined_group1_b),sum(combined_group1_d),sum(combined_group2_b),sum(combined_group2_d))
+combined_c_genes <- c("group1","group1","group2","group2")
+combined_c_effects <- c("b","d","b","d")
+
+
+combined_c_all <- data.frame(combined_c_nums,combined_c_genes,combined_c_effects)
+combined_c_all$combined_c_genes <- factor(combined_c_all$combined_c_genes,levels=c("group1","group2"))
+combined_c_all$combined_c_effects <- factor(combined_c_all$combined_c_effects,levels=c("d","b"))
+
+#########combine_larger_smaller_1_all  4 * 4
+ggplot(combined_c_all,aes(combined_c_genes,combined_c_nums, fill=combined_c_effects))+geom_bar(stat="identity",width=0.6) +labs(x="groups", y="Number of environments") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_y_continuous(limits=c(0,80),breaks=seq(0,80,20))
+
+combined_c_nums_matrix <- matrix(combined_c_nums,nrow = 2, byrow = TRUE)
+a <- chisq.test(combined_c_nums_matrix)
+a$p.value
+b <- fisher.test(combined_c_nums_matrix,alternative = "greater")
+b$p.value
+#p-value = 9.617321e-17
+
+chisq.test(c(66,10),p=c(0.5,0.5))
+#p-value = 1.331e-10
+chisq.test(c(18,62),p=c(0.5,0.5))
+#p-value = 8.683e-07
+
+
+```
+
+
+
+
+```{r}
+
+combined_nums_s <- c(IRA2_nums_s,PDR1_nums_s,GNP1_nums_s,PDR3_nums_s,PDR5_nums_s,RAS2_nums_s,WHI2_nums_s,YRR1_nums_s)
+combined_genes_s <- c("IRA2_group1","IRA2_group1","IRA2_group1","IRA2_group2","IRA2_group2","IRA2_group2",
+                    "PDR1_group1","PDR1_group1","PDR1_group1","PDR1_group2","PDR1_group2","PDR1_group2",
+                    "GNP1_group1","GNP1_group1","GNP1_group1","GNP1_group2","GNP1_group2","GNP1_group2",
+                    "PDR3_group1","PDR3_group1","PDR3_group1","PDR3_group2","PDR3_group2","PDR3_group2",
+                    "PDR5_group1","PDR5_group1","PDR5_group1","PDR5_group2","PDR5_group2","PDR5_group2",
+                    "RAS2_group1","RAS2_group1","RAS2_group1","RAS2_group2","RAS2_group2","RAS2_group2",
+                    "WHI2_group1","WHI2_group1","WHI2_group1","WHI2_group2","WHI2_group2","WHI2_group2",
+                    "YRR1_group1","YRR1_group1","YRR1_group1","YRR1_group2","YRR1_group2","YRR1_group2"
+                    )
+combined_effects_s <- c("b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d","b","n","d")
+
+
+combined_all_s <- data.frame(combined_nums_s,combined_genes_s,combined_effects_s)
+combined_all_s$combined_genes_s <- factor(combined_all_s$combined_genes_s,levels=c("IRA2_group1","IRA2_group2","PDR1_group1","PDR1_group2","GNP1_group1","GNP1_group2","PDR3_group1","PDR3_group2","PDR5_group1","PDR5_group2","RAS2_group1","RAS2_group2","WHI2_group1","WHI2_group2","YRR1_group1","YRR1_group2"))
+
+combined_all_s$combined_effects_s <- factor(combined_all_s$combined_effects_s,levels=c("d","n","b"))
+
+#########combine_larger_smaller_signficant_1  11 * 4
+ggplot(combined_all_s,aes(combined_genes_s,combined_nums_s, fill=combined_effects_s))+geom_bar(stat="identity",width=0.6) +labs(x="groups", y="Number of environments") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_y_continuous(limits=c(0,10),breaks=seq(0,10,2))
+
+
+##combined
+combined_s_group1_b <- combined_nums_s[c(1,7,13,19,25,31,37,43)]
+combined_s_group1_n <- combined_nums_s[c(1+1,7+1,13+1,19+1,25+1,31+1,37+1,43+1)]
+combined_s_group1_d <- combined_nums_s[c(1+2,7+2,13+2,19+2,25+2,31+2,37+2,43+2)]
+
+combined_s_group2_b <- combined_nums_s[c(1+3,7+3,13+3,19+3,25+3,31+3,37+3,43+3)]
+combined_s_group2_n <- combined_nums_s[c(1+4,7+4,13+4,19+4,25+4,31+4,37+4,43+4)]
+combined_s_group2_d <- combined_nums_s[c(1+5,7+5,13+5,19+5,25+5,31+5,37+5,43+5)]
+
+
+combined_s_c_nums <- c(sum(combined_s_group1_b),sum(combined_s_group1_n),sum(combined_s_group1_d),sum(combined_s_group2_b),sum(combined_s_group2_n),sum(combined_s_group2_d))
+combined_s_c_genes <- c("group1","group1","group1","group2","group2","group2")
+combined_s_c_effects <- c("b","n","d","b","n","d")
+
+
+combined_s_c_all <- data.frame(combined_s_c_nums,combined_s_c_genes,combined_s_c_effects)
+combined_s_c_all$combined_s_c_genes <- factor(combined_s_c_all$combined_s_c_genes,levels=c("group1","group2"))
+combined_s_c_all$combined_s_c_effects <- factor(combined_s_c_all$combined_s_c_effects,levels=c("d","n","b"))
+
+#combine_larger_smaller_signficant_1   4*4
+ggplot(combined_s_c_all,aes(combined_s_c_genes,combined_s_c_nums, fill=combined_s_c_effects))+geom_bar(stat="identity",width=0.6) +labs(x="groups", y="Number of environments") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_y_continuous(limits=c(0,80),breaks=seq(0,80,20))
+
+
+combined_s_c_nums_matrix <- matrix(combined_s_c_nums,nrow = 2, byrow = TRUE)
+a <- chisq.test(combined_s_c_nums_matrix)
+#1.125396e-16
+b <- fisher.test(combined_s_c_nums_matrix,alternative = "greater")
+b$p.value
+#p-value = 3.139989e-18
+
+chisq.test(c(59,8),p=c(0.5,0.5))
+#p-value = 4.645e-10
+chisq.test(c(8,44),p=c(0.5,0.5))
+#p-value = 5.966e-07
+
+```
+
