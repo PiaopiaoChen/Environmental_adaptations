@@ -1,0 +1,66 @@
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+
+nofm <- read.table("2_env_mutations_all",sep="\t",header=T,fill=TRUE)%>%mutate(dnds=.$N/.$S)%>%mutate(dnnds=(.$N+.$Non)/.$S)
+
+fitness <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/fitness/results_4reps/combined_fitness",sep="\t",header=T,fill=TRUE)
+fitness <- fitness[,c(1,4,7)]
+fitness <- fitness %>% setNames(c("env","Anc_fitness_mean", "Evolved_fitness_mean"))
+
+mydata <- merge(nofm,fitness,by="env")
+
+quantile(mydata$Evolved_fitness_mean, probs = seq(0, 1, 0.05))
+
+quantile(mydata$Anc_fitness_mean, probs = seq(0, 1, 0.05))
+
+
+cor.test(mydata$dnds, mydata$Evolved_fitness_mean,method = "pearson")
+cor.test(mydata$all, mydata$Evolved_fitness_mean,method = "pearson")
+c_no <- cor.test(mydata$coding, mydata$noncoding,method = "pearson")
+
+cor.test(mydata$dnds, mydata$Evolved_fitness_mean,method = "spearman")
+cor.test(mydata$all, mydata$Evolved_fitness_mean,method = "spearman")
+
+cor.test(mydata$N, mydata$Evolved_fitness_mean,method = "spearman")
+cor.test(mydata$S, mydata$Evolved_fitness_mean,method = "spearman")
+cor.test(mydata$Non, mydata$Evolved_fitness_mean,method = "spearman")
+cor.test(mydata$indel_with_f, mydata$Evolved_fitness_mean,method = "spearman")
+cor.test(mydata$indel_no_f, mydata$Evolved_fitness_mean,method = "spearman")
+cor.test(mydata$all, mydata$Evolved_fitness_mean,method = "spearman")
+
+aa <- cor.test(mydata$coding, mydata$Evolved_fitness_mean,method = "spearman")
+# 0.2899848  p-value = 7.125e-06
+
+bb <- cor.test(mydata$noncoding, mydata$Evolved_fitness_mean,method = "spearman")
+# 0.1389123  p-value = 0.03446
+
+library(ppcor)
+pcor.test(mydata$N, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+pcor.test(mydata$all, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+pcor.test(mydata$Non, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+pcor.test(mydata$indel_with_f, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+pcor.test(mydata$indel_no_f, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+pcor.test(mydata$coding, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+pcor.test(mydata$noncoding, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+pcor.test(mydata$dnds, mydata$Evolved_fitness_mean,mydata$S, method = c("spearman"))
+
+cc <- pcor.test(mydata$coding, mydata$Evolved_fitness_mean,mydata$noncoding, method = c("spearman"))
+# estimate    p.value statistic   n gp   Method
+#1 0.2587628 6.9058e-05  4.053862 232  1 spearman
+dd <- pcor.test(mydata$noncoding, mydata$Evolved_fitness_mean,mydata$coding, method = c("spearman"))
+#estimate   p.value  statistic   n gp   Method
+#1 -0.03084707 0.6409274 -0.4670231 232  1 spearman
+
+coding_noncoding <- data.frame(coefficients = c(aa$estimate,bb$estimate,cc$estimate,dd$estimate), pvalue = c(aa$p.value,bb$p.value,cc$p.value,dd$p.value),class=c("coding","noncoding","coding2","noncoding2"))
+coding_noncoding$class <- factor(coding_noncoding$class,levels=c("coding","noncoding","coding2","noncoding2"))
+#13_coding_noncoding 7X6
+ggplot(coding_noncoding,aes(class,coefficients))+geom_bar(stat="identity",width=0.6) + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_y_continuous(limits=c(-0.05,0.35),breaks=seq(0,0.3,0.1))
+
+
+```
+
