@@ -1,0 +1,120 @@
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+setwd("C:/Users/chenp/OneDrive - Umich/Environment250/fitness/results_4reps")
+
+
+########################all
+
+fitness_data <- read.table("combined_fitness",sep="\t",header=T,fill=TRUE)
+fitness_data <-fitness_data[which(!(fitness_data$Env == "E2")),]
+#fitness_env_rank <- fitness_data[order(-fitness_data$Anc_fitness_mean),]
+fitness_env_rank <- fitness_data[order(fitness_data$Anc_fitness_mean),]
+fitness_env_rank$Env <- factor(fitness_env_rank$Env, levels=unique(fitness_env_rank$Env))
+fitness_env_rank$nums <- c(1:nrow(fitness_env_rank))
+quantile(fitness_env_rank$Evolved_fitness_mean, probs = seq(0, 1, 0.05))
+fitness_env_rank$Anc_fitness_se <- fitness_data$Anc_fitness_sd/sqrt(3)
+#1_environments_order.pdf   8*3.5
+#ggplot(fitness_env_rank, aes(x=Env,y=Anc_fitness_mean))+ geom_point(size=0.5)+geom_errorbar(aes(ymin=Anc_fitness_mean-Anc_fitness_sd,ymax=Anc_fitness_mean+Anc_fitness_sd),width=.5,position=position_dodge(),size=.3)+scale_y_continuous(limits=c(0.67,1.1),breaks=seq(0.7,1.1,0.1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))
+
+#1_environments_order.pdf   9*2.5
+ggplot(fitness_env_rank, aes(x=nums,y=Anc_fitness_mean))+ geom_point(size=0.8)+geom_errorbar(aes(ymin=Anc_fitness_mean-Anc_fitness_se,ymax=Anc_fitness_mean+Anc_fitness_se),width=.5,position=position_dodge(),size=.2,color="darkgrey")+scale_y_continuous(limits=c(0.67,1.1),breaks=seq(0.7,1.1,0.1))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))
+#+scale_x_continuous(limits=c(0,250),breaks=seq(0,250,50))
+
+mean(fitness_env_rank$Anc_fitness_mean)  
+median(fitness_env_rank$Anc_fitness_mean)  
+sd(fitness_env_rank$Anc_fitness_mean)
+
+sum(fitness_env_rank$Anc_fitness_mean < 0.8)
+sum(fitness_env_rank$Anc_fitness_mean > 0.8 & fitness_env_rank$Anc_fitness_mean < 0.9)
+sum(fitness_env_rank$Anc_fitness_mean > 0.9 & fitness_env_rank$Anc_fitness_mean < 1)
+sum(fitness_env_rank$Anc_fitness_mean > 1)
+
+fitness_env_rank_select <- data.frame(Medium=fitness_env_rank$Env,nums=fitness_env_rank$nums)
+
+#ggplot(fitness_env_rank, aes(x=nums,y=Evolved_fitness_mean))+ geom_point()+geom_errorbar(aes(ymin=Evolved_fitness_mean-Evolved_fitness_sd,ymax=Evolved_fitness_mean+Evolved_fitness_sd),width=.5,position=position_dodge(),size=.3)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_y_continuous(limits=c(1,1.25),breaks=seq(1,1.25,0.05))
+
+#2_evolved_fitness_relative_to_ancestor.pdf   9*2.5
+ggplot(fitness_env_rank, aes(x=nums,y=Evolved_fitness_mean))+ geom_point(size=0.8)+geom_errorbar(aes(ymin=Evolved_fitness_mean-Evolved_fitness_sd,ymax=Evolved_fitness_mean+Evolved_fitness_sd),width=.1,position=position_dodge(),size=.1,color="darkgrey")+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_y_continuous(limits=c(0.97,2),breaks=seq(1,2,0.2))
+
+
+```
+
+
+```{r}
+
+fitness_evolved_rank <- fitness_data[order(fitness_data$Evolved_fitness_mean),]
+fitness_evolved_rank$Env <- factor(fitness_evolved_rank$Env, levels=unique(fitness_evolved_rank$Env))
+fitness_evolved_rank$nums <- c(1:nrow(fitness_evolved_rank))
+
+#3_fitness_ancestor_evolved.pdf   8*3.5
+ggplot(fitness_evolved_rank, aes(x=nums,y=Evolved_fitness_mean))+ geom_point(size=0.5)+geom_errorbar(aes(ymin=Evolved_fitness_mean-Evolved_fitness_sd,ymax=Evolved_fitness_mean+Evolved_fitness_sd),width=.5,position=position_dodge(),size=.3)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_y_continuous(limits=c(0.97,2),breaks=seq(1,2,0.1))+ geom_hline(yintercept=1.1)+ geom_hline(yintercept=1.2)
+
+mean(fitness_evolved_rank$Evolved_fitness_mean)   
+sd(fitness_evolved_rank$Evolved_fitness_mean)
+
+
+sum(fitness_evolved_rank$Evolved_fitness_mean < 1.1)
+
+sum(fitness_evolved_rank$Evolved_fitness_mean > 1.1 & fitness_evolved_rank$Evolved_fitness_mean < 1.2)
+
+sum(fitness_evolved_rank$Evolved_fitness_mean > 1.2 & fitness_evolved_rank$Evolved_fitness_mean < 1.4)
+
+sum(fitness_evolved_rank$Evolved_fitness_mean > 1.4)
+
+
+fitness_data_reps <-  read.table("combined_fitness_2",sep="\t",header=T,fill=TRUE)%>% merge(fitness_env_rank_select,by="Medium")
+fitness_reps_env_rank <- fitness_data_reps[order(fitness_data_reps$nums),]
+fitness_reps_env_rank$Medium <- factor(fitness_reps_env_rank$Medium, levels=unique(fitness_reps_env_rank$Medium))
+
+
+#ggplot(fitness_reps_env_rank)+ geom_point(aes(x=Medium,y=Fitness))+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+geom_rect(data=data.frame(xmin=seq(0,209,2),xmax=seq(1,210,2), ymin = -Inf, ymax = Inf),aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill="grey",alpha=0.3)
+
+
+
+```
+
+
+
+```{r}
+
+#4_fitness_correlation 7.5*6.2
+ggplot(fitness_data, aes(x=Anc_fitness_mean,y=Evolved_fitness_mean))+ geom_point(size=2)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))
+
+cor.test(fitness_data$Anc_fitness_mean,fitness_data$Evolved_fitness_mean)
+#-0.7219089  p=8.3613e-39
+cor.test(fitness_data$Anc_fitness_mean,fitness_data$Evolved_fitness_mean,method = "spearman")
+#-0.750018   
+
+#4_fitness_correlation_2rep_x_1rep_y 7.5*6.2
+ggplot(fitness_data, aes(x=Anc_fitness_2reps,y=Evo_fitness_1rep))+ geom_point(size=2)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+scale_y_continuous(limits=c(1,1.92),breaks=seq(1,1.8,0.2))
+
+cor.test(fitness_data$Anc_fitness_2reps,fitness_data$Evo_fitness_1rep)
+#-0.73  p=8.908677e-40
+cor.test(fitness_data$Anc_fitness_2reps,fitness_data$Evo_fitness_1rep,method = "spearman")
+#-0.76  
+
+```
+
+
+
+```{r}
+
+fitness_data3 <- select(fitness_data,Env,Anc_r_Mean,Evolved_r_mean)
+
+#3_growth_rate.pdf   7.5*6.2
+ggplot(fitness_data3, aes(x=Anc_r_Mean,y=Evolved_r_mean))+ geom_point(size=2)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+xlab("WT growth rate")+ylab("Evolved growth rate")+scale_y_continuous(limits=c(0.24,0.62),breaks=seq(0.3,0.6,0.1))+scale_x_continuous(limits=c(0.24,0.62),breaks=seq(0.3,0.6,0.1))
+cor.test(fitness_data3$Anc_r_Mean,fitness_data3$Evolved_r_mean)
+cor.test(fitness_data3$Anc_r_Mean,fitness_data3$Evolved_r_mean,method = "spearman")
+
+#3_relative_fitness_to_SC.pdf   7.5*6.2
+ggplot(fitness_data, aes(x=Anc_fitness_mean,y=Evolved_fitness_retoSC))+ geom_point(size=2)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black"))+xlab("WT growth rate")+ylab("Evolved growth rate")+scale_y_continuous(limits=c(0.68,1.1),breaks=seq(0.7,1.1,0.1))+scale_x_continuous(limits=c(0.68,1.1),breaks=seq(0.7,1.1,0.1))+ geom_abline(intercept = 0, slope = 1)
+
+cor.test(fitness_data$Anc_fitness_mean,fitness_data$Evolved_fitness_retoSC)
+#0.71  p=8.908677e-40
+
+```
+
