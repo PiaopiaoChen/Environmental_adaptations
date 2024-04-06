@@ -1,0 +1,180 @@
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(tibble)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+
+mydata <- read.table("1_mutation_constant252",sep="\t",header=T,fill=TRUE)
+mydata$type2[which(mydata$type2 == "First")] <- "N"
+
+MG_rank <- read.table("1_multiple_hits_genes",sep="\t",header=T,fill=TRUE)
+MG_envs <- read.table("1_env_all_gene_hits_b100000",sep="\t",header=T,fill=TRUE) %>% filter(group == "multi")
+
+```
+
+
+
+```{r}
+
+######### environments level:  explain_top
+unique(mydata$env_name)[which(!(unique(mydata$env_name) %in% unique(MG_envs$env)))] 
+#14 environments do not have multi-hit genes
+# [1] "env_127" "env_130" "env_157" "env_191" "env_222" "env_231" "env_26"  "env_322" "env_38"  "env_60"  "env_65" 
+#[14] "env_75"  "env_80"  "env_85" 
+
+ex_different_mg <- NULL
+for (j in 1:nrow(MG_rank)){
+  MG_rank_top <- MG_rank %>% filter(order <= j)
+   env_with_mg <- unique(MG_envs$env)
+   ex <- NULL     #explain
+   for (i in env_with_mg){
+        MG_envs_one <- MG_envs %>% filter(env == i)
+        ex_temp <- length(intersect(MG_envs_one$gene,MG_rank_top$gene))/nrow(MG_envs_one)
+        ex <- c(ex,ex_temp)
+   }
+   ex_all <- c(mean(ex), sd(ex)/sqrt(length(env_with_mg)))
+   ex_different_mg <- rbind(ex_different_mg,ex_all)
+}
+
+ex_different_mg <- data.frame(ex_different_mg) %>% "rownames<-"(1:nrow(MG_rank)) %>% setNames(c("mean","se")) %>% mutate(order=c(1:nrow(.))) %>% mutate(group = "group1") 
+ex_different_mg$group2 <- ifelse(ex_different_mg$order == 10, "top10", ifelse(ex_different_mg$order == 20, "top20", "others"))
+
+#9_plot_multi_genes.pdf  5.8*7
+ggplot(ex_different_mg, aes(x=order,y=mean,color=group2))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1)+theme_bw()+xlab("Multi-hit gene rank")+ylab("Averge percentage of multi-hit genes in all environments") + scale_x_continuous(limits=c(0,150)) + scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.2)) + theme_minimal() +theme(axis.line = element_line(colour = "black"))+theme(legend.position="none")+scale_color_brewer(palette="Dark2")
+
+```
+
+
+
+```{r}
+########################################################################  rm sc genes
+
+sc_mg1 <- c("IRA2","CYR1","RAS2")   #sc_mg2 <- c("IRA2","CYR1","RAS2","CDC25","PAN1","COP1","PDE2")
+
+MG_rank_rmsc1 <- read.table("1_multiple_hits_genes",sep="\t",header=T,fill=TRUE) %>% filter(!(.$gene %in% sc_mg1)) %>% mutate(order=1:nrow(.))
+
+MG_envs_rmsc1 <- MG_envs  %>% filter(!(.$gene %in% sc_mg1))
+  
+unique(mydata$env_name)[which(!(unique(mydata$env_name) %in% unique(MG_envs_rmsc1$env)))]
+# 61 environment do not have multi-hit genes
+#[1] "env_10"  "env_102" "env_106" "env_112" "env_114" "env_121" "env_122" "env_127" "env_130" "env_131" "env_135" "env_138" "env_139" "env_149"
+#[15] "env_15"  "env_157" "env_165" "env_178" "env_190" "env_191" "env_196" "env_197" "env_202" "env_205" "env_21"  "env_22"  "env_220" "env_222"
+#[29] "env_231" "env_234" "env_239" "env_240" "env_242" "env_251" "env_252" "env_253" "env_26"  "env_263" "env_320" "env_322" "env_325" "env_35" 
+#[43] "env_38"  "env_4"   "env_43"  "env_44"  "env_46"  "env_48"  "env_49"  "env_55"  "env_57"  "env_60"  "env_62"  "env_65"  "env_75"  "env_78" 
+#[57] "env_80"  "env_81"  "env_82"  "env_85"  "env_89" 
+
+
+ex_different_mg_rmsc1 <- NULL
+for (j in 1:nrow(MG_rank_rmsc1)){
+  MG_rank_top <- MG_rank_rmsc1 %>% filter(order <= j)
+   env_with_mg <- unique(MG_envs_rmsc1$env)
+   ex <- NULL     #explain
+   for (i in env_with_mg){
+        MG_envs_one <- MG_envs_rmsc1 %>% filter(env == i)
+        ex_temp <- length(intersect(MG_envs_one$gene,MG_rank_top$gene))/nrow(MG_envs_one)
+        ex <- c(ex,ex_temp)
+   }
+   ex_all <- c(mean(ex), sd(ex)/sqrt(length(env_with_mg)))
+   ex_different_mg_rmsc1 <- rbind(ex_different_mg_rmsc1,ex_all)
+}
+
+ex_different_mg_rmsc1 <- data.frame(ex_different_mg_rmsc1) %>% "rownames<-"(1:nrow(MG_rank_rmsc1)) %>% setNames(c("mean","se"))%>% mutate(order=c(1:nrow(.))) %>% mutate(group = "group2")
+ex_different_mg_rmsc1$group2 <- ifelse(ex_different_mg_rmsc1$order == 10, "top10", ifelse(ex_different_mg_rmsc1$order == 20, "top20", "others"))
+
+ggplot(ex_different_mg_rmsc1, aes(x=order,y=mean,color=group2))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1)+theme_bw()+xlab("Multi-hit gene rank")+ylab("Averge percentage of multi-hit genes in all environments")+scale_x_continuous(limits=c(0,150),breaks=seq(0,150,50))+scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.2)) + theme_minimal() +theme(axis.line = element_line(colour = "black"))+theme(legend.position="none")+scale_color_brewer(palette="Dark2")
+
+
+```
+
+
+
+```{r}
+ex_different_mg_combined <- rbind(ex_different_mg,ex_different_mg_rmsc1)
+
+#9_plot_multi_genes_combined_rmsc.pdf  5.8*7
+
+ggplot(ex_different_mg_combined, aes(x=order,y=mean,group=group,color=group))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1) + theme_bw() + xlab("Multi-hit gene rank") + ylab("Averge percentage of multi-hit genes in all environments") + theme_minimal() +theme(axis.line = element_line(colour = "black"))+theme(legend.position="none")+scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.2))+scale_color_brewer(palette="Dark2")
+
+write.table(ex_different_mg_combined,"9_explain",quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t") 
+
+```
+
+
+
+
+```{r}
+
+MG_env1 <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/constant96/3_env1_gene_hits",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_1")
+MG_env2 <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/constant96/3_env2_gene_hits",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_2")
+MG_env61 <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/constant96/3_env61_gene_hits",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_61")
+MG_env73 <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/constant96/3_env73_gene_hits",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_73")
+MG_env76 <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/constant96/3_env76_gene_hits",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_76")
+
+MG_env96 <- rbind(MG_env1,MG_env2,MG_env61,MG_env73,MG_env76) %>% filter(group == "multi")
+
+
+ex_different_mg_96 <- NULL
+for (j in 1:nrow(MG_rank)){
+  MG_rank_top <- MG_rank %>% filter(order <= j)
+   env_with_mg <- unique(MG_env96$env)
+   ex <- NULL     #explain
+   for (i in env_with_mg){
+        MG_envs_one <- MG_env96 %>% filter(env == i)
+        ex_temp <- length(intersect(MG_envs_one$gene,MG_rank_top$gene))/nrow(MG_envs_one)
+        ex <- c(ex,ex_temp)
+   }
+   ex_all <- c(mean(ex), sd(ex)/sqrt(length(env_with_mg)))
+   ex_different_mg_96 <- rbind(ex_different_mg_96,ex_all)
+}
+
+ex_different_mg_96 <- data.frame(ex_different_mg_96) %>% "rownames<-"(1:nrow(MG_rank)) %>% setNames(c("mean","se")) %>% mutate(order=c(1:nrow(.))) %>% mutate(group = "group3") 
+ex_different_mg_96$group2 <- ifelse(ex_different_mg_96$order == 10, "top10", ifelse(ex_different_mg_96$order == 20, "top20", "others"))
+
+#9_plot_multi_genes_96samples.pdf  5.8*7
+ggplot(ex_different_mg_96, aes(x=order,y=mean,color=group2))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1)+theme_bw()+xlab("Multi-hit gene rank")+ylab("Averge percentage of multi-hit genes in all environments") + scale_x_continuous(limits=c(0,150)) + scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.2)) + theme_minimal() +theme(axis.line = element_line(colour = "black"))+theme(legend.position="none")+scale_color_brewer(palette="Dark2")
+
+
+```
+
+
+
+```{r}
+
+MG_envs_rmsc1 <- MG_env96 %>% filter(!(.$gene %in% sc_mg1)) %>% mutate(order=1:nrow(.))
+  
+ex_different_mg_rmsc1_96 <- NULL
+for (j in 1:nrow(MG_rank_rmsc1)){
+   MG_rank_top <- MG_rank_rmsc1 %>% filter(order <= j)
+   env_with_mg <- unique(MG_envs_rmsc1$env)
+   ex <- NULL     #explain
+   for (i in env_with_mg){
+        MG_envs_one <- MG_envs_rmsc1 %>% filter(env == i)
+        ex_temp <- length(intersect(MG_envs_one$gene,MG_rank_top$gene))/nrow(MG_envs_one)
+        ex <- c(ex,ex_temp)
+   }
+   ex_all <- c(mean(ex), sd(ex)/sqrt(length(env_with_mg)))
+   ex_different_mg_rmsc1_96 <- rbind(ex_different_mg_rmsc1_96,ex_all)
+}
+
+ex_different_mg_rmsc1_96 <- data.frame(ex_different_mg_rmsc1_96) %>% "rownames<-"(1:nrow(MG_rank_rmsc1)) %>% setNames(c("mean","se"))%>% mutate(order=c(1:nrow(.))) %>% mutate(group = "group4")
+ex_different_mg_rmsc1_96$group2 <- ifelse(ex_different_mg_rmsc1_96$order == 10, "top10", ifelse(ex_different_mg_rmsc1_96$order == 20, "top20", "others"))
+
+ggplot(ex_different_mg_rmsc1_96, aes(x=order,y=mean,color=group2))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1)+theme_bw()+xlab("Multi-hit gene rank")+ylab("Averge percentage of multi-hit genes in all environments")+scale_x_continuous(limits=c(0,150),breaks=seq(0,150,50))+scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.2)) + theme_minimal() +theme(axis.line = element_line(colour = "black"))+theme(legend.position="none")+scale_color_brewer(palette="Dark2")
+
+```
+
+
+
+```{r}
+ex_different_mg_combined <- rbind(ex_different_mg_96,ex_different_mg_rmsc1_96)
+
+#9_plot_multi_genes_combined_rmsc_96samples.pdf  5.8*7
+
+ggplot(ex_different_mg_combined, aes(x=order,y=mean,group=group,color=group))+geom_line(size = 0.5, color="#999999",linetype = 2) + geom_point(size = 1) + theme_bw() + xlab("Multi-hit gene rank") + ylab("Averge percentage of multi-hit genes in all environments") + theme_minimal() +theme(axis.line = element_line(colour = "black"))+theme(legend.position="none")+scale_y_continuous(limits=c(0,1),breaks=seq(0,1,0.2))+scale_color_brewer(palette="Dark2")
+
+```
+
