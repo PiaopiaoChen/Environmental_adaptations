@@ -1,0 +1,198 @@
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant96/downsample12"
+setwd(dir0)
+
+gene_info <- read.table("all_gene_info",sep="\t",header=T,fill=TRUE,quote="")
+
+
+#Environment 1 0.2% Glucose
+#Environment 61 0.85M NaCl
+#Environment 73 PH3
+#Environment 76 5% Ethanol
+
+dices_all <- NULL
+
+for (g in 1:100){
+    f <- paste("random",g,sep="")
+    folder <- paste("C:/Users/chenp/OneDrive - Umich/Environment250/constant96/downsample12/",f,sep="")
+    setwd(folder)
+    
+    mydata_env1 <- read.table("env1",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_1")
+    mydata_env61 <- read.table("env61",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_61")
+    mydata_env73 <- read.table("env73",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_73")
+    mydata_env76 <- read.table("env76",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_76")
+    mydata <- rbind(mydata_env1,mydata_env61,mydata_env73,mydata_env76)
+    
+    mydata$type2[which(mydata$type2 == "First")] <- "N"
+    mydata$gene_env <- paste(mydata$gene2,mydata$env_name,sep="/")
+    
+    MG_env1 <- read.table("env1_gene_hit",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_1")
+    MG_env61 <- read.table("env61_gene_hit",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_61")
+    MG_env73 <- read.table("env73_gene_hit",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_73")
+    MG_env76 <- read.table("env76_gene_hit",sep="\t",header=T,fill=TRUE) %>% mutate(env="env_76")
+    
+    MG_all_envs <- rbind(MG_env1,MG_env61,MG_env73,MG_env76)
+    MG_all_envs_multi <- MG_all_envs %>% filter(group == "multi") %>% mutate(gene_env= paste(gene,env,sep="/"))
+    mydata_multi_hits <- mydata %>% filter(gene_env %in% MG_all_envs_multi$gene_env)
+    mydata_multi_hits <-  mydata_multi_hits %>% distinct(sample_name, gene2, .keep_all = TRUE)
+    
+    envs4 <- unique(MG_all_envs$env)
+    sample_all <- unique(mydata$sample_name)
+    
+
+    ############# same environment #############
+    
+    Dices_all_envs <- NULL
+    
+    for(k in 1:4){
+        env_one <- mydata[which(mydata$env_name == envs4[k]),]
+        env_one_MG <- mydata_multi_hits[which(mydata_multi_hits$env_name == envs4[k]),]
+        env_one_samples <- unique(env_one$sample_name)
+        comb <- data.frame(t(combn(1:length(env_one_samples),2)))
+    
+        ### all sample pairs
+        env_samples_pair <- NULL
+        for (i in 1:nrow(comb)){
+           temp <- c(env_one_samples[comb[i,1]], env_one_samples[comb[i,2]])
+           env_samples_pair <- rbind(env_samples_pair,temp)
+        }
+        env_samples_pair <- data.frame(env_samples_pair)
+     
+    
+        ### Dices
+        Dices_one_env <- NULL
+        for (j in 1:nrow(env_samples_pair)){
+            gene_sample1 <- env_one_MG[which(env_one_MG$sample_name == env_samples_pair[j,1]),15]
+            gene_sample2 <- env_one_MG[which(env_one_MG$sample_name == env_samples_pair[j,2]),15]
+            Dices_temp <- 2*length(intersect(gene_sample1,gene_sample2))/(length(gene_sample1)+length(gene_sample2))
+            Dices_one_env <- c(Dices_one_env,Dices_temp)
+        }
+        Dices_all_envs <- c(Dices_all_envs,mean(Dices_one_env,na.rm = TRUE))
+    }
+        
+    mean(Dices_all_envs)
+    Dices_same_envs <- data.frame(envs=envs4,dices=Dices_all_envs,group="same",rep=g)
+    
+    ############# diff environment #############
+
+    Dices_diff_all <- NULL
+    for (k in 1:4){
+      env_one <- mydata[which(mydata$env_name == envs4[k]),]
+      Samples <- unique(env_one$sample_name)
+      Envs_others <- envs4[!envs4 %in% env_one$env_name]
+      mydata_others <- mydata %>% filter(env_name %in% Envs_others)
+      sample_others <- unique(mydata_others$sample_name)
+      Dices_env_diff <- NULL
+      print (k)
+      for (i in 1:length(Samples)){
+          for (j in 1:length(sample_others)){
+              sample_pair <- c(Samples[i], sample_others[j])
+              sample_1_gene <- mydata_multi_hits[which(mydata_multi_hits$sample_name == sample_pair[1]),15]
+              sample_2_gene <- mydata_multi_hits[which(mydata_multi_hits$sample_name == sample_pair[2]),15]
+              Dices_temp <- 2*length(intersect(sample_1_gene,sample_2_gene))/(length(sample_1_gene)+length(sample_2_gene))
+              Dices_env_diff <- c(Dices_env_diff,Dices_temp)
+          }
+      }
+      Dices_diff_all <- c(Dices_diff_all, mean(Dices_env_diff,na.rm = TRUE))
+    }
+    Dices_diff_envs <- data.frame(envs=envs4,dices=Dices_diff_all,group="diff",rep=g)
+    
+    
+          
+      ############# random environment #############
+      gene_pool <- gene_info$gene
+      
+      mydata_multi_hits_random <- mydata_multi_hits
+      mydata_multi_hits_random$gene2 <- sample(gene_pool,nrow(mydata_multi_hits_random),replace = TRUE)
+      
+      
+      Dices_random_all <- NULL
+      
+      for (k in 1:4){
+        env_one <- mydata[which(mydata$env_name == envs4[k]),]
+        Samples <- unique(env_one$sample_name)
+        Envs_others <- envs4[!envs4 %in% env_one$env_name]
+        mydata_others <- mydata %>% filter(env_name %in% Envs_others)
+        sample_others <- unique(mydata_others$sample_name)
+        Dices_env_random <- NULL
+        print (k)
+        for (i in 1:length(Samples)){
+            for (j in 1:length(sample_others)){
+                sample_pair <- c(Samples[i], sample_others[j])
+                sample_1_gene <- mydata_multi_hits_random[which(mydata_multi_hits_random$sample_name == sample_pair[1]),15]
+                sample_2_gene <- mydata_multi_hits_random[which(mydata_multi_hits_random$sample_name == sample_pair[2]),15]
+                Dices_temp <- 2*length(intersect(sample_1_gene,sample_2_gene))/(length(sample_1_gene)+length(sample_2_gene))
+                Dices_env_random <- c(Dices_env_random,Dices_temp)
+            }
+        }
+        Dices_random_all <- c(Dices_random_all, mean(Dices_env_random,na.rm = TRUE))
+      }
+          
+    Dices_random_envs <- data.frame(envs=envs4,dices=Dices_random_all,group="sim",rep=g)
+  
+        
+    ############
+    dices <- rbind(Dices_same_envs,Dices_diff_envs,Dices_random_envs)
+    #dices$group <- factor(dices$group,levels=c("same","diff","sim"))
+    dices_all <- rbind(dices_all,dices)
+}
+
+setwd(dir0)
+write.table(dices_all,"5_dices_MG_sample12_downsample",quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t") 
+
+#dices_all <- read.table("5_dices_MG_sample12_downsample",sep="\t",header=T,fill=TRUE,quote="")
+
+dices_all_rmna <- na.omit(dices_all)%>% select(envs,dices,group) %>% mutate(group2="sample12") 
+#dices_all_rmna <- aggregate(dices_all_rmna$dices, list(dices_all_rmna$envs,dices_all_rmna$group), FUN=mean) %>% setNames(c("envs","group","dices"))
+
+
+dices_all_rmna_env1 <- dices_all_rmna %>% filter(envs=="env_1" & group=="same")
+
+dices_all_rmna_mean <- aggregate(dices_all_rmna$dices, list(dices_all_rmna$envs,dices_all_rmna$group), FUN=mean)
+colnames(dices_all_rmna_mean) <- c("envs","group","dices") 
+dices_all_rmna_mean$group2 <- "sample12"
+
+
+```
+
+
+```{r}
+##################compared with 96samples##################
+
+dices96 <- read.table("C:/Users/chenp/OneDrive - Umich/Environment250/constant96/6_dices_sample96",sep="\t",header=T,fill=TRUE)
+
+dices_all_sample96_sample12 <- rbind(dices_all_rmna_mean,dices96)
+dices_all_sample96_sample12$group <- factor(dices_all_sample96_sample12$group,levels=c("same","diff","sim"))
+dices_all_sample96_sample12$group2 <- factor(dices_all_sample96_sample12$group2,levels=c("sample96","sample12"))
+
+#5_plot_three_comparisons_dices_sample12_sample96.pdf  8.5*6.5
+ggplot(dices_all_sample96_sample12,aes(x=group,y=dices,fill=group2))+geom_boxplot(width=0.5)+ coord_cartesian(ylim = c(0,1)) +labs(y="Dice’s coefficient of similarity")+ theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())
+#,legend.position="none"
+
+ggplot(dices_all_sample96_sample12,aes(x=group,y=dices,fill=group2))+geom_boxplot(width=0.5) +labs(y="Dice’s coefficient of similarity")+ theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line())+scale_y_log10()+ coord_cartesian(ylim = c(0.00005,1))
+#,legend.position="none"
+
+
+
+
+wilcox.test(dices96$dices[which(dices96$group == "same")],dices_all_rmna_mean$dices[which(dices_all_rmna_mean$group == "same")])
+#p-value =0.4857
+
+wilcox.test(dices96$dices[which(dices96$group == "diff")],dices_all_rmna_mean$dices[which(dices_all_rmna_mean$group == "diff")])
+#p-value = 1
+
+wilcox.test(dices96$dices[which(dices96$group == "sim")],dices_all_rmna_mean$dices[which(dices_all_rmna_mean$group == "sim")])
+
+
+
+wilcox.test(dices_all_rmna_mean$dices[which(dices_all_rmna_mean$group == "sim")],dices_all_rmna_mean$dices[which(dices_all_rmna_mean$group == "diff")])
+#p-value = 0.02857
+wilcox.test(dices_all_rmna_mean$dices[which(dices_all_rmna_mean$group == "same")],dices_all_rmna_mean$dices[which(dices_all_rmna_mean$group == "diff")])
+#p-value = 0.02857
+
+```
