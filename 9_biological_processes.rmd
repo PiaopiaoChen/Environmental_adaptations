@@ -1,0 +1,62 @@
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+library(tibble)
+library(tidyr)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+
+
+GO <- read.table("14_units",sep="\t",header=T,fill=TRUE) %>% mutate_all(~ ifelse(. %in% c("", " "), NA, .)) %>% unite(.,new_column, signal:Golgi, sep = "_", na.rm = TRUE)
+
+mydata <- read.table("1_env_all_gene_hits_b100000",sep="\t",header=T,fill=TRUE)
+mydata_multi <- mydata %>% filter(group == "multi")  %>% merge(GO,by="gene")
+
+
+```
+
+
+```{r}
+#signal
+mydata_multi_all <- mydata_multi %>% mutate(signal = ifelse(grepl("signal", mydata_multi$new_column, ignore.case = TRUE), "signal", "")) %>% mutate(lipid = ifelse(grepl("lipid", mydata_multi$new_column, ignore.case = TRUE), "lipid", "")) %>% mutate(nucleotide = ifelse(grepl("nucleotide", mydata_multi$new_column, ignore.case = TRUE), "nucleotide", ""))%>% mutate(Golgi = ifelse(grepl("Golgi", mydata_multi$new_column, ignore.case = TRUE), "Golgi", "")) %>% mutate(transmembrane = ifelse(grepl("transmembrane", mydata_multi$new_column, ignore.case = TRUE), "transmembrane", "")) %>% mutate(transcription = ifelse(grepl("transcription", mydata_multi$new_column, ignore.case = TRUE), "transcription", "")) %>% mutate(vesicle = ifelse(grepl("vesicle", mydata_multi$new_column, ignore.case = TRUE), "vesicle", "")) %>% mutate(homeostasis = ifelse(grepl("homeostasis", mydata_multi$new_column, ignore.case = TRUE), "homeostasis", ""))
+
+
+mydata_multi_signal <- mydata_multi_all %>% distinct(env, signal, .keep_all = TRUE) %>% filter(signal == "signal")
+nrow(mydata_multi_signal)
+
+mydata_multi_transmembrane <- mydata_multi_all %>% distinct(env, transmembrane, .keep_all = TRUE) %>% filter(transmembrane == "transmembrane")
+nrow(mydata_multi_transmembrane)
+
+mydata_multi_homeostasis <- mydata_multi_all %>% distinct(env, homeostasis, .keep_all = TRUE) %>% filter(homeostasis == "homeostasis")
+nrow(mydata_multi_homeostasis)
+
+mydata_multi_lipid <- mydata_multi_all %>% distinct(env, lipid, .keep_all = TRUE) %>% filter(lipid == "lipid")
+nrow(mydata_multi_lipid)
+
+mydata_multi_transcription <- mydata_multi_all %>% distinct(env, transcription, .keep_all = TRUE) %>% filter(transcription == "transcription")
+nrow(mydata_multi_transcription)
+
+mydata_multi_nucleotide <- mydata_multi_all %>% distinct(env, nucleotide, .keep_all = TRUE) %>% filter(nucleotide == "nucleotide")
+nrow(mydata_multi_nucleotide)
+
+mydata_multi_vesicle <- mydata_multi_all %>% distinct(env, vesicle, .keep_all = TRUE) %>% filter(vesicle == "vesicle")
+nrow(mydata_multi_vesicle)
+
+mydata_multi_Golgi <- mydata_multi_all %>% distinct(env, Golgi, .keep_all = TRUE) %>% filter(Golgi == "Golgi")
+nrow(mydata_multi_Golgi)
+
+nums <- c(nrow(mydata_multi_signal), nrow(mydata_multi_transcription), nrow(mydata_multi_transmembrane),nrow(mydata_multi_homeostasis),nrow(mydata_multi_nucleotide),  nrow(mydata_multi_lipid), nrow(mydata_multi_vesicle), nrow(mydata_multi_Golgi))
+GOs <- c("signal","transcription","transmembrane","homeostasis","nucleotide","lipid","vesicle","Golgi")
+nums_GOs <- data.frame(nums=nums,GOs=GOs)
+
+nums_GOs$GOs<- factor(nums_GOs$GOs,levels=nums_GOs$GOs)
+
+##########14_function_unit  10X5
+ggplot(nums_GOs, aes(x=GOs, y=nums))+geom_bar(stat="identity",width=0.6)+xlab("GO")+ylab("Count")+scale_y_continuous(limits=c(0,150),breaks=seq(0,150,50))+ theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")
+
+
+
+```
+
