@@ -1,0 +1,140 @@
+##############################
+########  Gene expression 
+##############################
+
+```{r}
+library(ggplot2)
+library(dplyr)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+gene_info <- read.table("all_gene_info",sep="\t",header=T,fill=TRUE,quote="")
+gene_info1 <- select(gene_info,gene,ORF)
+gene_info2 <- select(gene_info,gene,ES,length)
+MG <- read.table("1_multiple_hits_genes",sep="\t",header=T,fill=TRUE,quote="")
+MG_149 <- MG %>% select(gene) 
+Exp <- read.table("4_gene_expression_in_YPD.txt",sep="\t",header=T,fill=TRUE,quote="")
+```
+
+```{r}
+Exp_mt <- Exp %>% mutate(group1 = ifelse(Exp$gene %in% MG_149$gene, "multi-hits","others")) %>% merge(gene_info2,by="gene") %>% mutate(group2 = paste(ES,group1,sep="_")) 
+
+aggregate(Exp_mt$Average_WT_RPKM, list(Exp_mt$group1), FUN=mean) 
+aggregate(Exp_mt$Average_WT_RPKM, list(Exp_mt$group1), FUN=median) 
+aggregate(Exp_mt$Average_WT_RPKM, list(Exp_mt$group2), FUN=mean) 
+aggregate(Exp_mt$Average_WT_RPKM, list(Exp_mt$group2), FUN=median) 
+
+#4_Expression(fig3e).pdf    5*6
+ggplot(Exp_mt,aes(x=group1,y=Average_WT_RPKM,group=group1,fill=group1))+geom_boxplot(width=0.5,outlier.shape = NA)+ coord_cartesian(ylim = c(0,400))+labs(y="Gene expression (RPKM)") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
+#group1 test
+wilcox.test(Exp_mt[which(Exp_mt$group1 == "multi-hits"),3],Exp_mt[which(Exp_mt$group1 == "others"),3])
+##p= 2.049648e-19
+
+#4_Expression_ES_NES.pdf    8*6
+ggplot(Exp_mt,aes(x=group2,y=Average_WT_RPKM,group=group2,fill=group1))+geom_boxplot(width=0.5,outlier.shape = NA)+ coord_cartesian(ylim = c(0,580))+labs(y="Gene expression (RPKM)") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
+#group2 test
+wilcox.test(Exp_mt[which(Exp_mt$group2 == "ES_multi-hits"),3],Exp_mt[which(Exp_mt$group2 == "ES_others"),3])
+wilcox.test(Exp_mt[which(Exp_mt$group2 == "NES_multi-hits"),3],Exp_mt[which(Exp_mt$group2 == "NES_others"),3])
+```
+
+
+##############################
+###### genetic interactions
+##############################
+
+```{r}
+all_interaction_data <- read.table("5_genetic_interaction",header=F, sep="\t")
+all_interaction_data$merge <- apply(all_interaction_data[,c(1:2)],1,function(x) paste(sort(x),collapse='_'))
+all_interaction_rmd <- all_interaction_data[!duplicated(all_interaction_data$merge),1:4]
+
+all_gene_list <- c(all_interaction_rmd$V1,all_interaction_rmd$V2)
+all_gene_hit_num <- data.frame(table(all_gene_list))
+colnames(all_gene_hit_num)<- c("ORF","nums")
+```
+
+```{r}
+all_genes_multi <- gene_info2 %>% mutate(group1 = ifelse(gene_info2$gene %in% MG$gene, "multi-hits","others")) %>% mutate(group2 = paste(ES,group1,sep="_")) %>% merge(all_gene_hit_num,by="ORF",all.x=TRUE)  %>% merge(gene_info3,by=c("gene","ORF","ES"),all.x=TRUE)
+
+all_genes_multi2 <- na.omit(all_genes_multi) 
+aggregate(all_genes_multi2$nums, list(all_genes_multi2$group1), FUN=mean) 
+aggregate(all_genes_multi2$nums, list(all_genes_multi2$group1), FUN=median) 
+aggregate(all_genes_multi2$nums, list(all_genes_multi2$group2), FUN=mean) 
+aggregate(all_genes_multi2$nums, list(all_genes_multi2$group2), FUN=median) 
+
+ggplot(all_genes_multi2,aes(x=group1,y=nums,group=group1,fill=group1))+geom_boxplot(width=0.5,outlier.shape = NA,notch = TRUE)+ coord_cartesian(ylim = c(0,800))+labs(y="Number of genetic interactions") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
+
+ggplot(all_genes_multi2,aes(x=group2,y=nums,group=group2,fill=group1))+geom_boxplot(width=0.5,outlier.shape = NA,notch = TRUE)+ coord_cartesian(ylim = c(0,800))+labs(y="Number of genetic interactions") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
+
+#group1 test
+wilcox.test(all_genes_multi2[which(all_genes_multi2$group1 == "multi-hits"),6],all_genes_multi2[which(all_genes_multi2$group1 == "others"),6])
+#group2 test
+wilcox.test(all_genes_multi2[which(all_genes_multi2$group2 == "ES_multi-hits"),6],all_genes_multi2[which(all_genes_multi2$group2 == "ES_others"),6])
+wilcox.test(all_genes_multi2[which(all_genes_multi2$group2 == "NES_multi-hits"),6],all_genes_multi2[which(all_genes_multi2$group2 == "NES_others"),6])
+
+
+all_genes_multi3 <- all_genes_multi %>%  replace(is.na(.),0)
+ 
+# 5_genetic_interactions.pdf   5*6
+ggplot(all_genes_multi3,aes(x=group1,y=nums,group=group1,fill=group1))+geom_boxplot(width=0.5,outlier.shape = NA)+ coord_cartesian(ylim = c(0,1000))+labs(y="Number of genetic interactions") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
+#group1 test
+wilcox.test(all_genes_multi3[which(all_genes_multi3$group1 == "multi-hits"),6],all_genes_multi3[which(all_genes_multi3$group1 == "others"),6])
+#p-value = 2.368e-11
+
+# 5_genetic_interactions_ES_NES.pdf  8*6
+ggplot(all_genes_multi3,aes(x=group2,y=nums,group=group2,fill=group1))+geom_boxplot(width=0.5,outlier.shape = NA)+ coord_cartesian(ylim = c(0,1000))+labs(y="Number of genetic interactions") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
+
+#group2 test
+wilcox.test(all_genes_multi3[which(all_genes_multi3$group2 == "ES_multi-hits"),6],all_genes_multi3[which(all_genes_multi3$group2 == "ES_others"),6])
+wilcox.test(all_genes_multi3[which(all_genes_multi3$group2 == "NES_multi-hits"),6],all_genes_multi3[which(all_genes_multi3$group2 == "NES_others"),6])
+
+```
+
+##############################
+###### protein interactions
+##############################
+
+```{r}
+all_interaction_data <- read.table("6_physical_interaction",header=F, sep="\t")
+all_interaction_data$merge <- apply(all_interaction_data[,c(1:2)],1,function(x) paste(sort(x),collapse='_'))
+all_interaction_rmd <- all_interaction_data[!duplicated(all_interaction_data$merge),1:4]
+
+all_gene_list <- c(all_interaction_rmd$V1,all_interaction_rmd$V2)
+all_gene_hit_num <- data.frame(table(all_gene_list))
+colnames(all_gene_hit_num)<- c("ORF","nums")
+```
+
+```{r}
+all_genes_multi <- gene_info2 %>% mutate(group1 = ifelse(gene_info2$gene %in% MG$gene, "multi-hits","others")) %>% mutate(group2 = paste(ES,group1,sep="_")) %>% merge(all_gene_hit_num,by="ORF",all.x=TRUE)
+
+all_genes_multi3 <- all_genes_multi %>%  replace(is.na(.),0)
+aggregate(all_genes_multi3$nums, list(all_genes_multi3$group1), FUN=mean) 
+aggregate(all_genes_multi3$nums, list(all_genes_multi3$group1), FUN=median) 
+aggregate(all_genes_multi3$nums, list(all_genes_multi3$group2), FUN=mean) 
+aggregate(all_genes_multi3$nums, list(all_genes_multi3$group2), FUN=median) 
+
+aggregate(all_genes_multi3$nums, list(all_genes_multi3$group1), FUN=length) 
+aggregate(all_genes_multi3$nums, list(all_genes_multi3$group2), FUN=length) 
+
+#6_protein_interactions.pdf  5*6
+ggplot(all_genes_multi3,aes(x=group1,y=nums,group=group1,fill=group1))+geom_boxplot(width=0.5,outlier.shape = NA)+ coord_cartesian(ylim = c(0,200))+labs(y="Number of physical interactions") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
+
+#test
+wilcox.test(all_genes_multi3[which(all_genes_multi3$group1 == "multi-hits"),6],all_genes_multi3[which(all_genes_multi3$group1 == "others"),6])
+#p-value = 2.477225e-18
+
+
+
+
+##############################
+###### fitness change upon gene deletion
+##############################
+
+
+MG <- read.table("3_MG.txt",sep="\t",header=F,fill=TRUE,quote="")
+Fitness <- read.table("3_fitness.txt",sep="\t",header=T,fill=TRUE)
+Fitness$adaptive <- ifelse(Fitness$ORF %in% MG$V1,"adaptive","other")
+median(Fitness$SC_fitness[which(Fitness$adaptive=="adaptive")])
+median(Fitness$SC_fitness[which(Fitness$adaptive=="other")])
+wilcox.test(Fitness$SC_fitness[which(Fitness$adaptive=="adaptive")],Fitness$SC_fitness[which(Fitness$adaptive=="other")])
+Fitness$adaptive <- factor(Fitness$adaptive,levels=c("adaptive","other"))
+####3_importance2.pdf   8*6
+ggplot(Fitness,aes(x=adaptive,y=SC_fitness,group=adaptive,fill=adaptive))+geom_boxplot(width=0.5,outlier.shape = NA)+scale_y_continuous(limits=c(0,1.2),breaks=seq(0,1.2,0.2))+labs(y="Fitness effect upon deletion") + theme(axis.title = element_text(size=10), axis.text.x = element_text(size=10), axis.text.y = element_text(size=10))+theme(panel.background = element_blank(), axis.line = element_line(),legend.position="none")+scale_fill_manual(values=c('#FF0000','#1E90FF'))
