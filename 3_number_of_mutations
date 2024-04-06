@@ -1,0 +1,233 @@
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggbreak)
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+mydata <- read.table("1_mutation_constant252",sep="\t",header=T,fill=TRUE)
+mydata$type2[which(mydata$type2 == "First")] <- "N"
+
+for (i in 1:nrow(mydata)){
+    if(mydata[i,8] == "indel"){
+        nt_num <- abs(length(strsplit(mydata$ref[i], "")[[1]]) -  length(strsplit(mydata$alt[i], "")[[1]]))
+		if ((nt_num %% 3) == 0){
+		   mydata[i,8] = "indel_no_frameshift"
+		}else{
+		   mydata[i,8] = "indel_with_frameshift"
+        }
+	}
+}
+#Env1 <- mydata[which(mydata$env_name == "env_1"),]
+mydata$gene_env <- paste(mydata$gene2,mydata$env_name,sep="/")
+
+mydata2 <- mydata %>% distinct(sample_name, gene2, .keep_all = TRUE)
+
+mydata3 <- mydata %>% distinct(env_name, gene2, .keep_all = TRUE)
+
+
+```
+
+
+```{r}
+#number_of_mutations_per_sample
+No_of_mutations <- data.frame(table(mydata$env_name))
+
+No_of_sams_muts <- mydata %>% distinct(sample_name, env_name, .keep_all = TRUE) %>% {(table(.$env_name))} %>% data.frame() %>% merge(No_of_mutations,by="Var1") %>% setNames(., c("env", "No_of_samples", "No_of_muts")) 
+
+No_of_sams_muts$mean <- No_of_sams_muts$No_of_muts/No_of_sams_muts$No_of_samples
+
+#ggplot(No_of_sams_muts, aes(x=env,y=mean))+ geom_point()+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) +xlab("Environments")+ylab("# of mutations per sample")
+
+########################################################
+###add sd
+mydata_mutations_all <- as.data.frame.matrix((table(mydata$sample_name,mydata$type2))) %>% mutate(SNV = N+S+Non,indel=indel_no_frameshift+indel_with_frameshift, all=N+S+Non+indel_no_frameshift+indel_with_frameshift)
+mydata_mutations_all$samples <- rownames(mydata_mutations_all)
+for (i in 1:nrow(mydata_mutations_all)){
+  mydata_mutations_all$samples2[i] <- paste(unlist(strsplit(mydata_mutations_all$samples[i],"_"))[1:2], collapse="_")
+}
+
+# number of SNVs/indels per sample
+sample_size <- aggregate(mydata_mutations_all$SNV, list(mydata_mutations_all$samples2), FUN=length) %>% setNames(c("env", "No_of_samples"))
+
+total_N <- aggregate(mydata_mutations_all$N, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "N"))
+
+total_S <- aggregate(mydata_mutations_all$S, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "S"))
+
+total_Non <- aggregate(mydata_mutations_all$Non, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "Non"))
+
+total_indel_no_f <- aggregate(mydata_mutations_all$indel_no_frameshift, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "indel_no_f"))
+
+total_indel_f <- aggregate(mydata_mutations_all$indel_with_frameshift, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "indel_with_f"))
+
+total_SNVs <- aggregate(mydata_mutations_all$SNV, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "SNVs"))
+mean_SNVs <- aggregate(mydata_mutations_all$SNV, list(mydata_mutations_all$samples2), FUN=mean)%>% setNames(c("env", "SNVs_mean"))
+sd_SNVs <- aggregate(mydata_mutations_all$SNV, list(mydata_mutations_all$samples2), FUN=sd)%>% setNames(c("env", "SNVs_sd"))
+
+total_indels <- aggregate(mydata_mutations_all$indel, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "indels"))
+mean_indels <- aggregate(mydata_mutations_all$indel, list(mydata_mutations_all$samples2), FUN=mean)%>% setNames(c("env", "indels_mean"))
+sd_indels <- aggregate(mydata_mutations_all$indel, list(mydata_mutations_all$samples2), FUN=sd)%>% setNames(c("env", "indels_sd"))
+
+
+total_all <- aggregate(mydata_mutations_all$all, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "all"))
+mean_all <- aggregate(mydata_mutations_all$all, list(mydata_mutations_all$samples2), FUN=mean)%>% setNames(c("env", "all_mean"))
+sd_all <- aggregate(mydata_mutations_all$all, list(mydata_mutations_all$samples2), FUN=sd)%>% setNames(c("env", "all_sd"))
+
+##combine 
+
+muts_envs <- merge(sample_size, total_N, by="env") %>% merge(total_S, by="env") %>% merge(total_Non, by="env") %>% merge(total_indel_no_f, by="env") %>% merge(total_indel_f, by="env") %>% merge(total_all, by="env") %>% merge(mean_all,by="env") %>% merge(sd_all,by="env") %>% merge(total_SNVs,by="env") %>% merge(mean_SNVs,by="env") %>% merge(sd_SNVs,by="env") %>% merge(total_indels,by="env")%>% merge(mean_indels,by="env")%>% merge(sd_indels,by="env") %>% {.[order(.$all_mean),]}
+
+muts_envs$env <- factor(muts_envs$env, levels=unique(muts_envs$env))
+#write.table(muts_envs,"2_env_mutations_coding_region",quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t")
+
+muts_envs$order <- c(1:nrow(muts_envs))
+#2_plot_number_of_mutations_per_samples.pdf  8X5
+ggplot(muts_envs, aes(x=order,y=all_mean))+ geom_point(size=1)+geom_errorbar(aes(ymin=all_mean-all_sd,ymax=all_mean+all_sd),width=.5,position=position_dodge(0.7),size=.3)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) +xlab("Environments")+ylab("# of mutations per sample")+geom_hline(yintercept=median(muts_envs$all_mean), linetype="dashed", color = "red",size=0.3)
+#median(muts_envs$all_mean)
+#[1] 5.375
+
+muts_envs_exclude_large <- muts_envs[which(muts_envs$all_mean < 12),]
+
+#2_plot_number_of_mutations_per_samples_zoom.pdf
+ggplot(muts_envs_exclude_large, aes(x=order,y=all_mean))+ geom_point(size=1)+geom_errorbar(aes(ymin=all_mean-all_sd,ymax=all_mean+all_sd),width=.5,position=position_dodge(0.7),size=.3)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) +xlab("Environments")+ylab("# of mutations per sample")+scale_y_continuous(limits=c(0,15),breaks=seq(0,15,5))+geom_hline(yintercept=median(muts_envs$all_mean), linetype="dashed", color = "red",size=0.3)
+median(muts_envs$all_mean)
+
+```
+
+
+
+```{r}
+####number of adaptive genes
+MG <- read.table("1_env_all_gene_hits_b100000",sep="\t",header=T,fill=TRUE)%>% filter(group == "multi")%>% mutate(gene_env= paste(gene,env,sep="/"))
+
+mydata_multi_hits <- mydata %>% filter(gene_env %in% MG$gene_env)
+mydata_other_hits1 <- mydata %>% filter(!(gene_env %in% MG$gene_env))
+mydata_other_hits2 <- mydata %>% filter(!(gene2 %in% MG$gene))
+
+multi_type <- data.frame(table(mydata_multi_hits$type2))
+
+sum(multi_type$Freq)
+
+
+other2_type <- data.frame(table(mydata_other_hits2$type2))
+
+
+chi_N_S <- matrix(c(1644, 28, 10716, 2972), nrow = 2)
+chisq.test(chi_N_S)$p.value
+
+chi_Non_S <- matrix(c(555, 28, 751, 2972), nrow = 2)
+chisq.test(chi_Non_S)$p.value
+
+chi_frame <- matrix(c(494, 57, 674, 405), nrow = 2)
+chisq.test(chi_frame)$p.value
+
+mydata_frameshifting_indel <- mydata %>% filter(type2 =="indel_with_frameshift")
+mydata_noframeshifting_indel <- mydata %>% filter(type2 =="indel_no_frameshift")
+
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+########merge with noncoding regions
+dir1="C:/Users/chenp/OneDrive - Umich/Environment250/constant252/noncoding"
+setwd(dir1)
+mydata_non <- read.table("2_add_annotations_R_method1",sep="\t",header=T,fill=TRUE)
+setwd(dir0)
+mydata_non2 <- mydata_non[,1:6]
+
+mydata_non2$type1 <- ifelse(nchar(mydata_non2$ref) == 1 & nchar(mydata_non2$alt) == 1, "SNV_noncoding","indel_noncoding")
+mydata_non2$type2 <- mydata_non2$type1
+
+mydata_1 <- mydata[,1:8]
+mydata_all <- rbind(mydata_1,mydata_non2)
+
+#number_of_mutations_per_sample
+No_of_mutations <- data.frame(table(mydata_all$env_name))
+
+No_of_sams_muts <- mydata_all %>% distinct(sample_name, env_name, .keep_all = TRUE) %>% {(table(.$env_name))} %>% data.frame() %>% merge(No_of_mutations,by="Var1") %>% setNames(., c("env", "No_of_samples", "No_of_muts")) 
+
+No_of_sams_muts$mean <- No_of_sams_muts$No_of_muts/No_of_sams_muts$No_of_samples
+
+#ggplot(No_of_sams_muts, aes(x=env,y=mean))+ geom_point()+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) +xlab("Environments")+ylab("# of mutations per sample")
+
+########################################################
+###add sd
+mydata_mutations_all <- as.data.frame.matrix((table(mydata_all$sample_name,mydata_all$type2))) %>% mutate(SNV_coding = N+S+Non,indel_coding=indel_no_frameshift+indel_with_frameshift,coding=N+S+Non+indel_no_frameshift+indel_with_frameshift,noncoding=indel_noncoding+SNV_noncoding,all=N+S+Non+indel_no_frameshift+indel_with_frameshift+indel_noncoding+SNV_noncoding)
+mydata_mutations_all$samples <- rownames(mydata_mutations_all)
+for (i in 1:nrow(mydata_mutations_all)){
+  mydata_mutations_all$samples2[i] <- paste(unlist(strsplit(mydata_mutations_all$samples[i],"_"))[1:2], collapse="_")
+}
+
+colnames(mydata_mutations_all)
+sum(mydata_mutations_all$N)
+sum(mydata_mutations_all$S)
+sum(mydata_mutations_all$Non)
+sum(mydata_mutations_all$indel_with_frameshift)
+sum(mydata_mutations_all$indel_no_frameshift)
+sum(mydata_mutations_all$coding)
+
+
+sum(mydata_mutations_all$SNV_noncoding)
+sum(mydata_mutations_all$indel_noncoding)
+sum(mydata_mutations_all$noncoding)
+
+
+# number of SNVs/indels per sample
+sample_size <- aggregate(mydata_mutations_all$all, list(mydata_mutations_all$samples2), FUN=length) %>% setNames(c("env", "No_of_samples"))
+
+
+total_N <- aggregate(mydata_mutations_all$N, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "N"))
+
+total_S <- aggregate(mydata_mutations_all$S, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "S"))
+
+total_Non <- aggregate(mydata_mutations_all$Non, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "Non"))
+
+total_indel_no_f <- aggregate(mydata_mutations_all$indel_no_frameshift, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "indel_no_f"))
+
+total_indel_f <- aggregate(mydata_mutations_all$indel_with_frameshift, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "indel_with_f"))
+
+total_coding <- aggregate(mydata_mutations_all$coding, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "coding"))
+
+total_noncoding <- aggregate(mydata_mutations_all$noncoding, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "noncoding"))
+
+
+total_all <- aggregate(mydata_mutations_all$all, list(mydata_mutations_all$samples2), FUN=sum) %>% setNames(c("env", "all"))
+mean_all <- aggregate(mydata_mutations_all$all, list(mydata_mutations_all$samples2), FUN=mean)%>% setNames(c("env", "all_mean"))
+sd_all <- aggregate(mydata_mutations_all$all, list(mydata_mutations_all$samples2), FUN=sd)%>% setNames(c("env", "all_sd"))
+
+##combine 
+
+muts_envs <- merge(sample_size, total_all, by="env") %>% merge(mean_all,by="env") %>% merge(sd_all,by="env")  %>% merge(total_N, by="env")%>% merge(total_S, by="env") %>% merge(total_Non, by="env") %>% merge(total_indel_no_f, by="env") %>% merge(total_indel_f, by="env") %>% merge(total_coding, by="env") %>% merge(total_noncoding, by="env") %>% {.[order(.$all_mean),]}
+
+#muts_envs$all_se <- muts_envs$all_sd/sqrt(12)
+
+muts_envs$env <- factor(muts_envs$env, levels=unique(muts_envs$env))
+
+dir0="C:/Users/chenp/OneDrive - Umich/Environment250/constant252"
+setwd(dir0)
+write.table(muts_envs,"2_env_mutations_all",quote = FALSE,col.names = TRUE, row.names = FALSE,sep="\t")
+
+muts_envs$order <- c(1:nrow(muts_envs))
+#2_plot_number_of_mutations_per_samples.pdf  10X3
+ggplot(muts_envs, aes(x=order,y=all_mean))+ geom_point(size=0.9)+geom_errorbar(aes(ymin=all_mean-all_sd,ymax=all_mean+all_sd),width=.2,position=position_dodge(0.7),size=.2)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) +xlab("Environments")+ylab("# of mutations per sample")+geom_hline(yintercept=median(muts_envs$all_mean), linetype="dashed", color = "red",size=0.3)
+#median(muts_envs$all_mean)
+#[1] 7
+
+muts_envs_exclude_large <- muts_envs[which(muts_envs$all_mean < 15),]
+
+#2_plot_number_of_mutations_per_samples_zoom.pdf   10X2.5
+ggplot(muts_envs_exclude_large, aes(x=order,y=all_mean))+ geom_point(size=0.9)+geom_errorbar(aes(ymin=all_mean-all_sd,ymax=all_mean+all_sd),width=.1,position=position_dodge(0.7),size=.1)+theme_bw()+theme(panel.border = element_blank(),panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.line = element_line(colour = "black")) +xlab("Environments")+ylab("# of mutations per sample")+geom_hline(yintercept=median(muts_envs$all_mean), linetype="dashed", color = "red",size=0.3)
+#scale_y_continuous(limits=c(0,15),breaks=seq(0,15,5))
+median(muts_envs$all_mean)
+
+```
+
